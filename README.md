@@ -4,6 +4,14 @@
 
 **Agentic Reframe** is an experimental exploration of agentic software design applied to the earliest stages of problem solving.
 
+In my experience with structured innovation and design processes, two recurring limitations emerge.
+
+- **Limited diversity of reasoning** reduces the breadth of exploration, narrows the space of possible interpretations, and increases the likelihood of converging prematurely on familiar solutions.
+
+- **Insufficient epistemic traceability** makes it difficult to reconstruct the logical path connecting observations, evidence, assumptions, hypotheses, validations, and decisions. As a result, important design choices may become influenced by intuition, cognitive biases, or group dynamics without making those influences explicit.
+
+Agentic Reframe explores whether a collection of specialized reasoning agents can produce richer and more balanced challenge framings than a single reasoning process. In parallel, it builds a provenance-aware knowledge graph that makes the evolution of ideas explicit, allowing conclusions, assumptions, supporting evidence, and contradictions to remain connected and auditable throughout the design process.
+
 Rather than generating solutions, the project focuses on a more fundamental question:
 
 > **How can multiple specialized AI agents help us construct a better representation of a problem before ideation begins?**
@@ -17,18 +25,6 @@ The long-term objective is not to replace human judgment, but to augment it thro
 # Project Status
 
 > **Early development**
-
----
-
-# Motivation
-
-In my experience with structured innovation and design processes, two recurring limitations emerge.
-
-- **Limited diversity of reasoning** reduces the breadth of exploration, narrows the space of possible interpretations, and increases the likelihood of converging prematurely on familiar solutions.
-
-- **Insufficient epistemic traceability** makes it difficult to reconstruct the logical path connecting observations, evidence, assumptions, hypotheses, validations, and decisions. As a result, important design choices may become influenced by intuition, cognitive biases, or group dynamics without making those influences explicit.
-
-Agentic Reframe explores whether a collection of specialized reasoning agents can produce richer and more balanced challenge framings than a single reasoning process. In parallel, it builds a provenance-aware knowledge graph that makes the evolution of ideas explicit, allowing conclusions, assumptions, supporting evidence, and contradictions to remain connected and auditable throughout the design process.
 
 ---
 
@@ -219,7 +215,7 @@ The repository is intentionally organized around the separation of:
 
 # Technical Goals
 
-The project explores several modern software engineering concepts:
+The project explores several software engineering concepts:
 
 - multi-agent orchestration;
 - planning-first development;
@@ -275,17 +271,6 @@ Sovereign Synthesizer is the only agent allowed to append graph events for
 exercise synthesis, conflict classification, claim deprecation, and logical
 connections across exercises.
 
-The first runtime should use local adapters shaped like MCP tools:
-
-- `brief_filesystem`;
-- `exercise_registry`;
-- `human_input`;
-- `provenance_graph`;
-- `artifact_writer`;
-- `structured_logger`.
-
-These adapters provide the least-privilege boundary now and can later be
-replaced by real MCP servers without changing the agent contracts.
 
 ---
 
