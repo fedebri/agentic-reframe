@@ -1,5 +1,10 @@
 # 3. Align Participatory Approach
 
+## Attribution
+
+Adapted for this agentic workflow from the IDEO.org Design Kit method "Align on
+Your Participatory Approach."
+
 ## Purpose
 
 Define how affected participants should be involved in the discovery process
@@ -11,6 +16,21 @@ and where participation, consent, representation, or power risks need attention.
 - Audience hypotheses
 - Available human-input evidence
 - Prior graph claims about stakeholders and power
+
+## Procedure
+
+1. Review the project brief with the team and identify who the project needs to
+   learn from, when they should be involved, and how often engagement is needed.
+2. Select relevant participant archetypes, such as directly affected community
+   members, proxies and providers, academics or field leaders, funders and
+   partners, or other design collaborators.
+3. Choose the participation mode that fits project goals and constraints:
+   consultation, participatory design, co-design, or community-led work.
+4. Compare the value and trade-offs of each mode, especially the amount of
+   input and decision-making power participants will actually hold.
+5. Write a clear participation commitment covering who will participate, the
+   chosen approach, time commitment, participant responsibilities, and what
+   happens after the project ends.
 
 ## Tasks
 
@@ -33,8 +53,3 @@ and where participation, consent, representation, or power risks need attention.
 
 Create graph claims for participant roles, engagement assumptions, and power or
 consent risks. Link template requests to missing-evidence events.
-
-## Source Material
-
-- `3_align_participatory.html`
-- `3_align_participatory_approach.pdf`

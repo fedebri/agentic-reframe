@@ -1,5 +1,10 @@
 # 4. Secondary Research
 
+## Attribution
+
+Adapted for this agentic workflow from the IDEO.org Design Kit method
+"Secondary Research."
+
 ## Purpose
 
 Establish what is already true, already tried, structurally limiting, or known
@@ -10,6 +15,20 @@ from external sources before ideation begins.
 - Brief and supporting documents
 - User-supplied research notes in `human_input/secondary_research/`
 - Prior graph claims that require external validation
+
+## Procedure
+
+1. Start from the current design challenge and learn the broader context around
+   it before entering the field.
+2. Review recent news, reports, publications, or data sources to identify what
+   has changed recently.
+3. Look for relevant innovations, including technical, behavioral, cultural, or
+   institutional experiments.
+4. Compare existing solutions and prior attempts, noting what worked, what
+   failed, what resembles the current challenge, and what should not be
+   reinvented.
+5. Use secondary research to collect facts and figures that complement
+   qualitative interviews and prevent the team from ignoring hard constraints.
 
 ## Tasks
 
@@ -33,7 +52,3 @@ from external sources before ideation begins.
 
 Every fact must cite a source document or human-provided research note. Do not
 upgrade agentic inference to fact without evidence.
-
-## Source Material
-
-- `4_secondary_research.html`

@@ -1,5 +1,10 @@
 # 9. Photojournal
 
+## Attribution
+
+Adapted for this agentic workflow from the IDEO.org Design Kit method
+"Photojournal."
+
 ## Purpose
 
 Use photo-based evidence to understand context, environment, routines, tools,
@@ -11,6 +16,19 @@ prompt for human evidence collection.
 - Photos, captions, or field notes in `human_input/photos/`
 - Interview or observation notes
 - Stakeholder and audience hypotheses
+
+## Procedure
+
+1. Plan the activity early enough for participants to capture everyday moments
+   before an interview or follow-up discussion.
+2. Give the participant a camera or use their existing device, then provide a
+   focused prompt tied to the challenge.
+3. Ask for photos that reveal context, influences, places, routines, tools, or
+   decisions related to the topic.
+4. Review the photos before the interview and prepare follow-up questions based
+   only on what is visible and what the participant has captioned.
+5. During the discussion, ask the participant to explain each photo, why it
+   matters, how it makes them feel, and what they chose not to photograph.
 
 ## Tasks
 
@@ -31,7 +49,3 @@ prompt for human evidence collection.
 
 Every photo-derived claim must cite the photo file and caption or note source.
 Do not infer identity, intent, emotion, or causality from a photo alone.
-
-## Source Material
-
-- `9_photojournal.html`
