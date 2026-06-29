@@ -9,9 +9,11 @@ prototyping.
 ## Repository Contract
 
 - Treat `docs/brief.md` as the primary challenge input.
-- Treat files under `exercises/` as ordered exercise definitions. The numeric
-  prefix controls execution order, but each exercise must be analyzed as an
-  independent action before synthesis.
+- Treat Markdown files under `exercises/` as the canonical ordered exercise
+  definitions. The numeric prefix controls execution order, but each exercise
+  must be analyzed as an independent action before synthesis.
+- Treat HTML and PDF files under `exercises/` as optional local source
+  material. They are ignored by Git and must not be required by the runtime.
 - Treat `human_input/` and `docs/user_input/` as human-in-the-loop evidence
   drop zones. If evidence is absent, generate the appropriate collection
   template instead of inventing field data.
