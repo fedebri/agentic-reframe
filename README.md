@@ -173,10 +173,11 @@ Each execution should progressively construct a structured representation of the
 |   |   `-- generated/
 |   `-- user_input/
 |-- exercises/
-|   |-- 1_frame_challenge.html
-|   |-- 2_align_impact_goals.html
+|   |-- README.md
+|   |-- 1_frame_challenge.md
+|   |-- 2_align_impact_goals.md
 |   |-- ...
-|   `-- 13_value_proposition_canvas.pdf
+|   `-- 13_value_proposition_canvas.md
 |-- human_input/
 |   |-- interviews/
 |   |   |-- general/
@@ -207,6 +208,9 @@ The repository is intentionally organized around the separation of:
 - MCP-shaped access boundaries: `mcp/manifest.yaml`;
 - shared workflow knowledge: `skills/design-sprint-agentic/`;
 - external context and human evidence: `docs/`, `human_input/`, and
+  `exercises/`;
+- canonical exercise definitions: Markdown outlines in `exercises/*.md`;
+- optional local source material: ignored imported HTML and PDF assets in
   `exercises/`;
 - observability and outputs: `outputs/logs/`, `outputs/graph/`,
   `outputs/exercises/`, and `outputs/final/`.
@@ -303,8 +307,9 @@ replaced by real MCP servers without changing the agent contracts.
 ## Milestone 3: Exercise Loader
 
 - Load exercises from `config/project.yaml` in deterministic numeric order.
-- Extract title, subtitle, process summary, and steps from HTML exercises.
-- Represent PDF exercises as file-backed definitions with metadata.
+- Treat Markdown outlines in `exercises/*.md` as canonical exercise
+  definitions.
+- Keep HTML and PDF assets as source material referenced by configuration.
 
 ## Milestone 4: Agent Runtime
 
@@ -345,7 +350,18 @@ replaced by real MCP servers without changing the agent contracts.
 
 # License
 
-To be determined.
+Code, configuration, agent definitions, and software architecture files are
+licensed under the Apache License 2.0.
+
+Original documentation and exercise outline files authored for this repository
+are licensed under Creative Commons Attribution 4.0 International (CC BY 4.0).
+
+The exercise concepts and original source method materials that informed the
+Markdown outlines in `exercises/*.md` are authored by IDEO.org as part of
+Design Kit. This repository attributes that original authorship to IDEO.org.
+Imported Design Kit HTML and PDF files are intentionally excluded from
+publication through `.gitignore` and are not covered by this repository's
+licenses.
 
 ---
 
