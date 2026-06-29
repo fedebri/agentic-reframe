@@ -1,6 +1,6 @@
 # Exercise Outlines
 
-This folder contains publishable Markdown exercise outlines used by the
+This folder contains Markdown exercise outlines used by the
 agentic workflow.
 
 Imported HTML and PDF source materials may exist locally for review and
