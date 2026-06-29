@@ -1,13 +1,3 @@
-# Exercise Outlines
-
-This folder contains Markdown exercise outlines used by the
-agentic workflow.
-
-Imported HTML and PDF source materials may exist locally for review and
-attribution, but they are ignored by Git and are not part of the published
-repository. `config/project.yaml` treats each Markdown file as the canonical
-exercise definition through the `source` field.
-
 ## Ordered Exercises
 
 | Order | Exercise | Canonical outline |
