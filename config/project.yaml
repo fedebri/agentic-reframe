@@ -1,0 +1,263 @@
+project:
+  id: agentic-design-tutorial
+  name: Agentic Design Tutorial
+  version: 0.1.0
+  mode: tutorial
+
+paths:
+  brief: docs/brief.md
+  exercises: exercises
+  human_input:
+    legacy_notes: docs/user_input
+    root: human_input
+    photos: human_input/photos
+    interviews:
+      general: human_input/interviews/general
+      expert: human_input/interviews/expert
+      group: human_input/interviews/group
+    secondary_research: human_input/secondary_research
+    resource_flow: human_input/resource_flow
+  process_templates:
+    root: docs/process_templates
+    generated: docs/process_templates/generated
+  outputs:
+    root: outputs
+    logs: outputs/logs
+    graph: outputs/graph
+    exercises: outputs/exercises
+    final: outputs/final
+
+human_in_the_loop:
+  mode: auto_detect
+  analyze_when_present: true
+  generate_templates_when_absent: true
+  accepted_evidence_types:
+    - interview_transcript
+    - interview_notes
+    - expert_notes
+    - group_notes
+    - photo
+    - photo_caption
+    - secondary_research_note
+    - resource_flow_map
+
+agents:
+  reasoning:
+    - id: systems_strategist
+      profile: agents/analyst.md
+      mbti_family: analyst
+    - id: human_interpreter
+      profile: agents/diplomat.md
+      mbti_family: diplomat
+    - id: operational_realist
+      profile: agents/sentinel.md
+      mbti_family: sentinel
+    - id: opportunity_scout
+      profile: agents/explorer.md
+      mbti_family: explorer
+  synthesis:
+    id: sovereign_synthesizer
+    profile: agents/sythesizer.md
+
+execution:
+  default_timeout_seconds: 300
+  max_retries: 1
+  run_reasoning_agents_in_parallel: true
+  run_exercises_independently_before_cross_synthesis: true
+  vote_only_when_prioritizing_unresolved_options: true
+  evidence_overrides_vote: true
+
+# One first-pass call; these limits override the general execution plan.
+# Standard uncached token rates checked 2026-09-08:
+# https://developers.openai.com/api/docs/models/gpt-4.1-mini
+# A live invocation must separately supply --budget-usd; config is not approval.
+first_pass_model:
+  model: gpt-4.1-mini-2025-04-14
+  timeout_seconds: 60
+  max_retries: 1
+  max_input_bytes: 60000
+  max_input_tokens: 20000
+  max_output_tokens: 4000
+  input_usd_per_million: 0.40
+  output_usd_per_million: 1.60
+
+source_material_policy:
+  field: source_material
+  publication: excluded_from_git
+  required_for_runtime: false
+  purpose: Optional local review and attribution for original imported materials.
+
+exercise_registry:
+  - id: frame_challenge
+    order: 1
+    source: exercises/1_frame_challenge.md
+    objective: Frame the challenge at the right altitude and name who it is for.
+    produces:
+      - framed_challenge_candidates
+      - altitude_risks
+      - audience_hypotheses
+  - id: align_impact_goals
+    order: 2
+    source: exercises/2_align_impact_goals.md
+    objective: Clarify near-term and long-term impact goals.
+    produces:
+      - impact_goals
+      - success_signals
+      - goal_conflicts
+  - id: align_participatory_approach
+    order: 3
+    source: exercises/3_align_participatory.md
+    objective: Decide how affected participants should be engaged.
+    produces:
+      - participation_plan
+      - engagement_risks
+      - consent_and_power_notes
+  - id: secondary_research
+    order: 4
+    source: exercises/4_secondary_research.md
+    objective: Capture landscape facts, prior attempts, and hard constraints.
+    produces:
+      - landscape_facts
+      - constraint_facts
+      - research_questions
+  - id: power_mapping
+    order: 5
+    source: exercises/5_power_mapping.md
+    objective: Map stakeholder power, influence, and participation risks.
+    produces:
+      - stakeholder_power_map
+      - power_asymmetries
+      - governance_questions
+  - id: resource_flow
+    order: 6
+    source: exercises/6_resource_flow.md
+    objective: Map critical resource flows among stakeholders.
+    resource_types:
+      - money
+      - time
+      - labor
+      - care
+      - infrastructure
+      - attention
+      - trust
+      - data
+    produces:
+      - resource_flow_map
+      - bottlenecks
+      - dependency_edges
+  - id: extremes_and_mainstreams
+    order: 7
+    source: exercises/7_extremes_mainstreams.md
+    objective: Identify mainstream and extreme users or contexts.
+    produces:
+      - audience_segments
+      - edge_case_needs
+      - recruiting_plan
+  - id: analogous_inspiration
+    order: 8
+    source: exercises/8_analogous_inspiration.md
+    objective: Find transferable patterns from adjacent contexts.
+    produces:
+      - analogy_sources
+      - transferable_patterns
+      - analogy_limits
+  - id: photojournal
+    order: 9
+    source: exercises/9_photojournal.md
+    objective: Analyze photo-based evidence or create a photojournal prompt.
+    produces:
+      - observed_contexts
+      - environmental_clues
+      - photojournal_template
+  - id: five_whys
+    order: 10
+    source: exercises/10_five_whys.md
+    objective: Iteratively probe causes beneath any exercise takeaway.
+    applies_to:
+      - all_exercises
+    produces:
+      - root_cause_chains
+      - assumption_chains
+      - stopping_conditions
+  - id: interviews
+    order: 11
+    source: exercises/11_interviews.md
+    objective: Analyze or generate general, expert, and group interview assets.
+    produces:
+      - interview_insights
+      - quote_evidence
+      - interview_templates
+  - id: project_plan
+    order: 12
+    source: exercises/12_project_plan.md
+    objective: Build a project plan that supports later ideation and prototyping.
+    produces:
+      - timeline
+      - staffing_needs
+      - budget_questions
+      - fieldwork_plan
+  - id: value_proposition_canvas
+    order: 13
+    source: exercises/13_value_proposition_canvas.md
+    objective: Structure stakeholder jobs, pains, gains, and value hypotheses.
+    produces:
+      - persona_maps
+      - jobs_to_be_done
+      - pains
+      - gains
+
+provenance_graph:
+  storage: jsonl
+  path: outputs/graph/provenance_events.jsonl
+  append_only: true
+  claim_statuses:
+    - proposed
+    - supported
+    - contested
+    - deprecated
+    - accepted_tension
+  validation_sources:
+    - agentic_inference
+    - user_statement
+    - interview_evidence
+    - photo_evidence
+    - secondary_research
+    - exercise_artifact
+  edge_types:
+    - supports
+    - contradicts
+    - refines
+    - generalizes
+    - depends_on
+    - invalidates
+    - supersedes
+
+logging:
+  structured: true
+  format: jsonl
+  path: outputs/logs/run_events.jsonl
+  level: info
+  include:
+    - run_id
+    - stage_id
+    - exercise_id
+    - agent_id
+    - input_manifest
+    - output_manifest
+    - graph_event_ids
+    - public_reasoning_summary
+    - warnings
+    - validation_status
+  exclude:
+    - hidden_chain_of_thought
+    - credentials
+    - private_unassigned_files
+
+final_outputs:
+  framed_challenge: outputs/final/framed_challenge.md
+  audience_definition: outputs/final/audience_definition.md
+  persona_mapping: outputs/final/persona_mapping.md
+  landscape_constraints: outputs/final/landscape_constraints.md
+  opportunity_reframings: outputs/final/opportunity_reframings.md
+  project_plan: outputs/final/project_plan.md
+  provenance_report: outputs/final/provenance_report.md

@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "agentic-dt"
+version = "0.1.0"
+description = "A tutorial runtime for evidence-tracked challenge framing"
+requires-python = ">=3.11"
+dependencies = ["PyYAML>=6,<7", "pydantic>=2,<3", "openai>=2.54,<3"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8,<10", "ruff>=0.9,<1"]
+
+[project.scripts]
+agentic-dt = "agentic_dt.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["agentic_dt*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 88
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]

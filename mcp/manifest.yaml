@@ -1,0 +1,86 @@
+mcp:
+  version: 0.1.0
+  strategy: local_adapters_first
+  servers:
+    - id: brief_filesystem
+      purpose: Read the assigned brief and supporting documents.
+      permissions:
+        read:
+          - docs/brief.md
+          - docs/supporting/**
+        write: []
+      exposed_capabilities:
+        - read_brief
+        - list_supporting_documents
+        - read_assigned_supporting_document
+    - id: exercise_registry
+      purpose: Provide ordered exercise definitions from repo configuration.
+      permissions:
+        read:
+          - config/project.yaml
+          - exercises/**
+        write: []
+      exposed_capabilities:
+        - list_exercises
+        - read_exercise
+        - extract_exercise_metadata
+    - id: human_input
+      purpose: Expose available human-in-the-loop evidence and absent-evidence template triggers.
+      permissions:
+        read:
+          - human_input/**
+          - docs/user_input/**
+        write: []
+      exposed_capabilities:
+        - build_evidence_manifest
+        - read_assigned_evidence
+        - report_missing_evidence
+    - id: provenance_graph
+      purpose: Query and append provenance-tagged claims, evidence, and logical edges.
+      permissions:
+        read:
+          - outputs/graph/provenance_events.jsonl
+        write:
+          - outputs/graph/provenance_events.jsonl
+      append_only: true
+      exposed_capabilities:
+        - append_claim_event
+        - append_edge_event
+        - append_status_event
+        - query_active_claims
+        - query_conflicts
+        - query_deprecated_claims
+    - id: artifact_writer
+      purpose: Write assigned stage outputs and final artifacts.
+      permissions:
+        read: []
+        write:
+          - outputs/exercises/**
+          - outputs/final/**
+          - docs/process_templates/generated/**
+      exposed_capabilities:
+        - write_agent_output
+        - write_synthesis
+        - write_final_artifact
+        - write_human_template
+    - id: structured_logger
+      purpose: Append structured run logs for observability and debugging.
+      permissions:
+        read: []
+        write:
+          - outputs/logs/run_events.jsonl
+      append_only: true
+      exposed_capabilities:
+        - log_stage_started
+        - log_agent_started
+        - log_agent_finished
+        - log_graph_mutation
+        - log_warning
+        - log_validation_decision
+
+least_privilege:
+  default_deny: true
+  no_agent_receives_broad_filesystem: true
+  no_reasoning_agent_writes_graph: true
+  no_agent_reads_future_stage_outputs: true
+  no_logs_include_hidden_chain_of_thought: true

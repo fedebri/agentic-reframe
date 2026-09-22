@@ -1,0 +1,89 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon?
+._*
+
+# Editor / IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+build/
+dist/
+.coverage
+htmlcov/
+
+# Secrets, credentials and env files
+.env
+.env.*
+*.env
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+*.asc
+*.gpg
+id_rsa*
+id_ed25519*
+*.kdbx
+
+# Configs that may contain tokens
+*.local
+*.secret
+secrets/
+private/
+credentials/
+config/private*
+
+# Logs and dumps
+*.log
+logs/
+*.dump
+*.sql
+*.sqlite
+*.db
+
+# Archives
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+*.7z
+*.rar
+
+# Notebooks can leak paths, outputs, tokens
+.ipynb_checkpoints/
+
+# Imported source materials retained locally, not published
+.archive/
+exercises/*.html
+exercises/*.pdf
+
+# Local runs, evidence, and generated collection forms
+/outputs/
+/human_input/
+/docs/user_input/
+/docs/process_templates/generated/
+
+# Internal development notes and planning
+/docs/development_plan.md
+/docs/test_readiness_review.md
+/docs/package_*_walkthrough.md
+/agents/agent_template.txt
+/agents/agent_yaml_template.txt
+/agents/sentinel.md.rtf

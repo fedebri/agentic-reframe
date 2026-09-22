@@ -1,0 +1,4 @@
+interface:
+  display_name: "Agentic Design Sprint"
+  short_description: "Run provenance-first design sprint analysis"
+  default_prompt: "Use $design-sprint-agentic to turn a brief and exercise folder into validated design-sprint framing artifacts."

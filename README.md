@@ -26,6 +26,33 @@ The long-term objective is not to replace human judgment, but to augment it thro
 
 > **Early development**
 
+The local CLI supports input validation, a fictional provenance demonstration,
+a Systems Strategist first pass, and continuation through three independent
+perspectives and synthesis. Model commands preview by default; `--live` explicitly
+enables API calls. The current reasoning workflow covers the first exercise,
+Frame Challenge, and produces a provisional report for human review.
+
+From the repository root, using Python 3.11 or later:
+
+```bash
+python3 -m venv .venv
+.venv/bin/python -m pip install -e '.[dev]'
+.venv/bin/agentic-dt validate --brief docs/examples/library_brief.md
+.venv/bin/agentic-dt provenance-demo
+.venv/bin/agentic-dt first-pass --brief docs/examples/library_brief.md
+.venv/bin/python -m pytest
+```
+
+The example brief is explicitly fictional. Omit `--brief` to inspect the primary
+`docs/brief.md`, which is currently a placeholder. Passing validation checks
+structure and readable files, not the quality or completeness of the challenge.
+
+See the [workflow guide](docs/workflow.md) for API-key setup, explicit run
+budgets, human review, synthesis, and output inspection. Tests run offline.
+Generated requests, responses, reports, graph histories, logs, and human evidence
+remain local and are excluded from Git. The fictional example brief and
+deterministic test code are included so a fresh checkout can be verified.
+
 ---
 
 # Project Scope
@@ -109,7 +136,7 @@ Input manifest and ordered exercise registry
 Per-exercise execution bundle
         |
         v
-Parallel reasoning agents
+Independent reasoning agents
   - Systems Strategist   (Analyst)
   - Human Interpreter    (Diplomat)
   - Operational Realist  (Sentinel)
@@ -125,7 +152,7 @@ Append-only provenance graph + structured JSONL logs
 Final framing artifacts for later ideation and prototyping
 ```
 
-Each exercise is treated as an independent action first. The synthesizer then
+The intended full workflow treats each exercise as an independent action first. The synthesizer then
 confronts its takeaways with prior exercise takeaways, records logical
 connections, classifies inconsistency, and blocks deprecated claims from final
 outputs unless stronger later evidence supersedes them.
@@ -153,6 +180,9 @@ Each execution should progressively construct a structured representation of the
 .
 |-- AGENTS.md
 |-- README.md
+|-- pyproject.toml
+|-- agentic_dt/
+|-- tests/
 |-- agents/
 |   |-- analyst.md
 |   |-- diplomat.md
@@ -163,7 +193,9 @@ Each execution should progressively construct a structured representation of the
 |   `-- project.yaml
 |-- docs/
 |   |-- brief.md
-|   |-- development_plan.md
+|   |-- workflow.md
+|   |-- examples/
+|   |   `-- library_brief.md
 |   |-- process_templates/
 |   |   |-- hitl_templates.md
 |   |   `-- generated/
@@ -196,11 +228,13 @@ Each execution should progressively construct a structured representation of the
         `-- references/artifact-contracts.md
 ```
 
+Output directories and human evidence drop zones are local runtime paths; they
+are not distributed with the repository.
+
 The repository is intentionally organized around the separation of:
 
 - reasoning: agent profiles in `agents/`;
-- orchestration policy: `AGENTS.md`, `config/project.yaml`, and
-  `docs/development_plan.md`;
+- orchestration policy: `AGENTS.md` and `config/project.yaml`;
 - MCP-shaped access boundaries: `mcp/manifest.yaml`;
 - shared workflow knowledge: `skills/design-sprint-agentic/`;
 - external context and human evidence: `docs/`, `human_input/`, and
@@ -231,9 +265,15 @@ The project explores several software engineering concepts:
 
 # Current Architecture
 
-The current repository contains the architectural scaffold and project
-contracts. The Python runtime described in `docs/development_plan.md` is the
-next implementation step.
+The runtime validates configured inputs, stores append-only provenance, and
+runs the first exercise through independent reasoning and synthesis. A saved
+human review binds continuation to the exact first-pass response. Python
+validates model outputs and writes a provisional report; agents have no direct
+filesystem or graph tools. Reasoning calls currently run sequentially.
+
+The diagram below shows the broader target architecture. Cross-exercise
+execution, general review/resume, evidence ingestion, collection-template
+generation, MCP services, and final artifact compilation remain planned.
 
 ```text
 Repo-specific configuration
@@ -274,62 +314,13 @@ connections across exercises.
 
 ---
 
-# Roadmap
+# Future Work
 
-## Milestone 1: Repository Scaffold
-
-- Add root project instructions, repo configuration, MCP manifest, agent
-  profiles, output folders, human input drop zones, and repo-local skill.
-- Status: scaffolded.
-
-## Milestone 2: Schemas and Observability
-
-- Implement typed configuration loading and validation.
-- Implement structured JSONL logging.
-- Implement graph event models for claims, evidence, edges, status changes,
-  and conflict classifications.
-
-## Milestone 3: Exercise Loader
-
-- Load exercises from `config/project.yaml` in deterministic numeric order.
-- Treat Markdown outlines in `exercises/*.md` as canonical exercise
-  definitions.
-- Keep HTML and PDF assets as source material referenced by configuration.
-
-## Milestone 4: Agent Runtime
-
-- Load agent profiles from `agents/*.md`.
-- Build scoped per-exercise task bundles.
-- Run the four reasoning agents independently.
-- Enforce least-privilege read/write boundaries.
-
-## Milestone 5: Synthesis and Provenance Graph
-
-- Implement the Sovereign Synthesizer merge flow.
-- Append support, contradiction, refinement, dependency, invalidation, and
-  supersession edges.
-- Enforce deprecated-claim blocking before final artifact generation.
-
-## Milestone 6: Human-in-the-Loop Evidence and Templates
-
-- Detect available interviews, photos, secondary research, and resource-flow
-  material.
-- Analyze human evidence when present.
-- Generate collection templates when evidence is absent.
-
-## Milestone 7: Final Artifact Compiler
-
-- Compile framed challenge, audience definitions, persona mappings, landscape
-  constraints, opportunity reframings, project plan, and provenance report.
-- Require every final statement to cite active claims or accepted tensions.
-
-## Milestone 8: Tutorial Verification
-
-- Add a sample brief and smoke test.
-- Add focused tests for config validation, graph append-only behavior, conflict
-  enforcement, HITL templates, and exercise ordering.
-- Document how to inspect logs, graph events, intermediate exercise outputs,
-  and final artifacts.
+- Extend human review to revision, rejection, and resuming interrupted runs.
+- Continue across exercises using approved prior context.
+- Ingest human evidence and generate missing-evidence collection forms.
+- Compile final framing artifacts with checked provenance.
+- Evaluate the contribution of multiple perspectives against a single-agent baseline.
 
 ---
 
