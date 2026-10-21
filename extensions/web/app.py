@@ -1,6 +1,5 @@
 """Plain HTML adapter for the existing inquiry workflow, with isolated storage."""
 
-import fcntl
 import hmac
 import io
 import json
@@ -81,7 +80,12 @@ def _research_archive(directory: Path) -> io.BytesIO:
     return archive
 
 
-def create_app(settings: dict | None = None) -> Flask:
+def create_app(
+    settings: dict | None = None,
+    *,
+    store: WebStore | None = None,
+    access: AccessIdentity | None = None,
+) -> Flask:
     """Create the optional web app without changing repository inputs or outputs."""
     app = Flask(__name__)
     app.config.from_mapping(
@@ -114,6 +118,8 @@ def create_app(settings: dict | None = None) -> Flask:
     data_root = Path(app.config["DATA_ROOT"]).resolve()
     data_root.mkdir(parents=True, exist_ok=True)
     if not app.config["SECRET_KEY"]:
+        import fcntl
+
         key_path = data_root / ".session-key"
         with (data_root / ".initialization-lock").open("a") as lock:
             fcntl.flock(lock, fcntl.LOCK_EX)
@@ -140,9 +146,8 @@ def create_app(settings: dict | None = None) -> Flask:
         raise ValueError("Web budgets must be finite, nonnegative USD amounts.")
     if app.config["AUTH_MODE"] not in {"local", "cloudflare"}:
         raise ValueError("WEB_AUTH_MODE must be local or cloudflare.")
-    access = None
     if app.config["AUTH_MODE"] == "cloudflare":
-        access = AccessIdentity(
+        access = access or AccessIdentity(
             app.config["ACCESS_TEAM_DOMAIN"], app.config["ACCESS_AUD"]
         )
         app.config["SESSION_COOKIE_SECURE"] = True
@@ -151,7 +156,7 @@ def create_app(settings: dict | None = None) -> Flask:
         for email in app.config["ADMIN_EMAILS"].split(",")
         if email.strip()
     }
-    store = WebStore(data_root)
+    store = store or WebStore(data_root)
     app.extensions["web_store"] = store
 
     @app.before_request

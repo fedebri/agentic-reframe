@@ -1,0 +1,70 @@
+name = "agentic-reframe"
+main = "dist/extensions/cloudflare/entry.py"
+base_dir = "dist"
+find_additional_modules = true
+compatibility_date = "2026-10-01"
+compatibility_flags = ["python_workers"]
+workers_dev = false
+preview_urls = false
+
+[[rules]]
+type = "Text"
+globs = ["**/*.md", "**/*.yaml", "**/*.css", "**/*.js"]
+fallthrough = true
+
+[[rules]]
+type = "Data"
+globs = ["**/*.woff2"]
+fallthrough = true
+
+[[durable_objects.bindings]]
+name = "COHORT"
+class_name = "Cohort"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["Cohort"]
+
+[[r2_buckets]]
+binding = "RESEARCH"
+bucket_name = "agentic-reframe-private"
+
+[[services]]
+binding = "RUNNER"
+service = "agentic-reframe-runner"
+
+[vars]
+WEB_ACCESS_TEAM_DOMAIN = "https://YOUR-TEAM.cloudflareaccess.com"
+WEB_ACCESS_AUD = "REPLACE-WITH-ACCESS-APPLICATION-AUD"
+WEB_ADMIN_EMAILS = ""
+WEB_LIVE_ENABLED = "0"
+WEB_RUN_BUDGET_USD = "0.10"
+WEB_USER_BUDGET_USD = "0.50"
+WEB_TOTAL_BUDGET_USD = "5.00"
+
+[observability]
+enabled = false
+
+# Local-only identity mode is rejected for every non-loopback URL.
+[env.local.vars]
+DEV_MODE = "1"
+WEB_SECRET_KEY = "fictional-local-cloudflare-preview-key"
+WEB_LIVE_ENABLED = "0"
+WEB_RUN_BUDGET_USD = "0"
+WEB_ACCESS_TEAM_DOMAIN = ""
+WEB_ACCESS_AUD = ""
+WEB_ADMIN_EMAILS = ""
+WEB_USER_BUDGET_USD = "0"
+WEB_TOTAL_BUDGET_USD = "0"
+
+[[env.local.durable_objects.bindings]]
+name = "COHORT"
+class_name = "Cohort"
+
+[[env.local.r2_buckets]]
+binding = "RESEARCH"
+bucket_name = "agentic-reframe-private-local"
+
+[[env.local.services]]
+binding = "RUNNER"
+service = "agentic-reframe-runner-fixture"

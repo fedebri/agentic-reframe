@@ -1,0 +1,30 @@
+# Test-only provider stub. No real API requests; never deploy this configuration.
+name = "agentic-reframe-runner-fixture"
+main = "dist-fixture/tests/workers/fixture.py"
+base_dir = "dist-fixture"
+find_additional_modules = true
+compatibility_date = "2026-10-01"
+compatibility_flags = ["python_workers"]
+workers_dev = false
+preview_urls = false
+
+[[rules]]
+type = "Text"
+globs = ["**/*.md", "**/*.yaml", "**/*.css", "**/*.js"]
+fallthrough = true
+
+[[rules]]
+type = "Data"
+globs = ["**/*.woff2"]
+fallthrough = true
+
+[[r2_buckets]]
+binding = "RESEARCH"
+bucket_name = "agentic-reframe-private-local"
+
+[vars]
+WEB_LIVE_ENABLED = "1"
+OPENAI_API_KEY = "fictional-smoke-test-key-never-sent-to-network"
+
+[observability]
+enabled = false

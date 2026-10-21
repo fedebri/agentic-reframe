@@ -1,6 +1,5 @@
 """Web identity, drafts, and durable job reservations; core artifacts stay in files."""
 
-import fcntl
 import json
 import sqlite3
 from contextlib import contextmanager
@@ -31,6 +30,8 @@ class WebStore:
     """One local SQLite database shared by the web process and a single worker."""
 
     def __init__(self, root: Path):
+        import fcntl
+
         self.root = root
         self.path = root / "web.sqlite3"
         # WAL initialization needs exclusive access on the first cold start.
@@ -58,6 +59,8 @@ class WebStore:
     @contextmanager
     def project_lock(self, project_id: str, *, shared: bool = False):
         """Serialize filesystem operations within an already-authorized project."""
+        import fcntl
+
         path = self.root / "projects" / project_id / ".web-lock"
         with path.open("a") as lock:
             fcntl.flock(lock, fcntl.LOCK_SH if shared else fcntl.LOCK_EX)

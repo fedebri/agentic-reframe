@@ -1,0 +1,8 @@
+.wrangler/
+.dev.vars
+.dev.vars.*
+node_modules/
+.venv-workers/
+.venv-build/
+python_modules/
+dist-fixture/

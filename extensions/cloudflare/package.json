@@ -1,0 +1,6 @@
+{
+  "name": "agentic-reframe-cloudflare",
+  "private": true,
+  "engines": {"node": ">=22"},
+  "devDependencies": {"wrangler": "4.151.3"}
+}

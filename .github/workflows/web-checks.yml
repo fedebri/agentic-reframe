@@ -24,9 +24,10 @@ jobs:
         run: python -m pip install -e '.[dev]' -r extensions/web/requirements.txt
       - name: Check the extension
         run: |
-          python -m ruff check extensions/web tests/local/test_web_extension.py tests/local/test_web_deployment.py
-          python -m ruff format --check extensions/web tests/local/test_web_extension.py tests/local/test_web_deployment.py
+          python -m ruff check extensions/web extensions/cloudflare tests/workers tests/local/test_web_extension.py tests/local/test_web_deployment.py tests/local/test_cloudflare_extension.py
+          python -m ruff format --check extensions/web extensions/cloudflare tests/workers tests/local/test_web_extension.py tests/local/test_web_deployment.py tests/local/test_cloudflare_extension.py
           python -m pytest -q
+          python -m extensions.cloudflare.build
       - name: Validate Compose without displaying configuration values
         env:
           WEB_SECRET_KEY: fictional-ci-cookie-key

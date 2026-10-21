@@ -14,9 +14,11 @@ boxes within the page width. Light typography, a blue wordmark/dot, open spacing
 and fine rules borrow a few elements from the Derver website guidelines. Dense
 forms retain a white canvas and dark text.
 
-For production, follow [the step-by-step Cloudflare deployment guide](DEPLOYMENT.md).
-Use the same repository; deploy the Python service with the provided Compose
-file. A static `dist/` deployment cannot run this workflow or background worker.
+For a deployment entirely on Cloudflare, use the separate
+[Workers adapter and setup guide](../cloudflare/README.md). For an always-on Docker
+host behind Cloudflare Access/Tunnel, follow [the Docker deployment guide](DEPLOYMENT.md).
+Both use this same repository and the same website/core contracts. A static
+Cloudflare Pages upload alone cannot run the research workflow.
 
 ## Run locally
 

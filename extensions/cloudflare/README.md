@@ -1,0 +1,311 @@
+# Cloudflare Workers deployment
+
+This is a separate host adapter for the existing research website and Python
+engine. It runs entirely on Cloudflare: no Docker server, Tunnel connector, or
+always-on personal computer. The local/Docker host in `extensions/web/` still works.
+
+The local pilot is implemented and tested; it has not been published to a real
+Cloudflare account. See [verification and next development work](DEVELOPMENT_STATUS.md)
+for the completed checks and deployment gates.
+
+## What runs where
+
+| Component | Responsibility |
+| --- | --- |
+| Public Python Worker | Serve the existing Flask website and verify Access identities |
+| One Durable Object (`Cohort`) | Serialize short changes, commit snapshots, reserve budgets, wake queued jobs |
+| Private Python runner Worker | Execute the unchanged analyst/critic workflow outside browser requests |
+| Private R2 bucket | Preserve immutable snapshots and analysis artifacts |
+| Cloudflare Access | Invite testers using their email identities |
+
+The adapter deliberately reuses SQLite and the core's existing files inside a
+temporary working directory. After each short operation, it uploads a consistent
+ZIP revision to R2 **before** advancing the Durable Object's durable `head` pointer.
+That pointer, rather than the temporary filesystem, determines saved state.
+Previous R2 revisions are retained. A failed upload leaves the previous head intact.
+
+The job alarm commits its claim before contacting the private runner. During the
+call, other testers can browse and save drafts. The runner returns only artifacts
+from the claimed run; it cannot merge a ledger or replace newer drafts. The normal
+human review remains the only route to applying claims.
+
+This is a **small-cohort pilot**, with one analysis running at a time and a **12 MiB
+uncompressed working-data limit across the cohort**. Each operation restores and
+packs the cohort snapshot. This preserves the existing engine with a small adapter,
+but is not a design for large uploads or an unlimited number of projects. Historical
+R2 revisions are outside this working-data limit and still consume storage. Before
+a larger rollout, measure latency/memory with representative data and move metadata
+and individual artifacts to a more granular storage design.
+
+## 1. Install local development tools
+
+These commands run in **Terminal on your Mac**, only while developing/deploying.
+Cloudflare keeps the deployed application running after your Mac is turned off.
+
+Install [Node.js 22 or later](https://nodejs.org/en/download) and
+[uv](https://docs.astral.sh/uv/getting-started/installation/) if needed. Then:
+
+```sh
+cd /Users/f1/Documents/github_repos/agentic_dt/extensions/cloudflare
+npm ci
+uv sync --locked
+uv run python build.py
+uv run pywrangler sync
+```
+
+`uv.lock` pins the local tooling, `pylock.toml` pins WebAssembly-compatible packages,
+and `package-lock.json` pins the tested Wrangler version. Do not silently regenerate
+them during deployment. `pywrangler sync` installs those packages for Workers.
+
+## 2. Try the website locally
+
+```sh
+uv run pywrangler dev --env local --port 8790
+```
+
+Open <http://127.0.0.1:8790>. This uses a separate local R2/Durable Object emulator,
+fictional browser identities, and disabled AI calls. Your existing port-8787 app
+and its project files are separate.
+
+From another terminal in this folder:
+
+```sh
+uv run python smoke.py
+```
+
+Stop/restart this Wrangler process with the same command, then:
+
+```sh
+uv run python smoke.py --resume
+```
+
+That checks real uploads, project isolation, independent drafts, frozen runs and
+runtime restart persistence. Local state stays under the ignored `.wrangler/` folder.
+The local identity mode rejects non-loopback URLs; never deploy `--env local`.
+
+## 3. Test analysis without paying for API calls
+
+The optional provider fixture is in `tests/workers/fixture.py`. It intercepts all
+outbound provider requests, returns clearly fictional claims, and injects one HTTP
+429 to exercise the existing bounded retry logic. It is excluded from the production
+bundle. No real API key is needed or used.
+
+Build both bundles, then start the fixture in one terminal:
+
+```sh
+uv run python build.py
+uv run python build.py --fixture
+uv run pywrangler dev --config wrangler.fixture.toml --port 8791
+```
+
+Start the website in another terminal, replacing its ordinary preview process:
+
+```sh
+uv run pywrangler dev --env local --port 8790 \
+  --var WEB_LIVE_ENABLED:1 \
+  --var WEB_RUN_BUDGET_USD:0.10 \
+  --var WEB_USER_BUDGET_USD:0.50 \
+  --var WEB_TOTAL_BUDGET_USD:5.00
+```
+
+Then, from a third terminal:
+
+```sh
+uv run python smoke.py --analysis
+```
+
+The script submits a fictional review **only to its loopback test project**. It
+checks the native alarm, service binding, real SDK with the provider stub, critic,
+concurrent draft save and applied review. Restart the website and run `--resume`
+again to verify that the completed results also persist. Never deploy the fixture
+configuration or point this script at a real cohort.
+
+## 4. Prepare Cloudflare
+
+In the Cloudflare dashboard:
+
+1. Choose the account that owns your website's domain. Use a Workers Paid plan for
+   this Python pilot; CPU/memory and R2/DO usage still need monitoring.
+2. Enable R2 and create a bucket named `agentic-reframe-private`. Leave public access
+   and `r2.dev` disabled. Both production configurations bind this bucket.
+3. Choose a separate hostname, for example `research.your-domain.com`.
+4. Open Zero Trust, configure your team domain and enable **One-time PIN** as an
+   identity provider if you want email login.
+5. Add a **self-hosted Access application** covering the entire research hostname,
+   all paths. Add an Allow policy with the explicit invited email addresses,
+   including your administrator email. Avoid a broad Everyone policy.
+6. Copy the Access application's **AUD** value and your team issuer URL, such as
+   `https://your-team.cloudflareaccess.com`.
+
+See the official guides for
+[email PIN login](https://developers.cloudflare.com/cloudflare-one/integrations/identity-providers/one-time-pin/),
+[self-hosted Access applications](https://developers.cloudflare.com/cloudflare-one/access-controls/applications/http-apps/self-hosted-public-app/),
+and [Workers pricing](https://developers.cloudflare.com/workers/platform/pricing/).
+
+## 5. Set the production configuration
+
+Edit `wrangler.toml` in this folder:
+
+```toml
+[vars]
+WEB_ACCESS_TEAM_DOMAIN = "https://your-team.cloudflareaccess.com"
+WEB_ACCESS_AUD = "your-application-audience"
+WEB_ADMIN_EMAILS = "your-email@example.com"
+WEB_LIVE_ENABLED = "0"
+WEB_RUN_BUDGET_USD = "0.10"
+WEB_USER_BUDGET_USD = "0.50"
+WEB_TOTAL_BUDGET_USD = "5.00"
+```
+
+Keep the other configuration sections. The issuer, AUD and admin email are settings,
+not API credentials. The app verifies signed Access tokens; an arbitrary email
+header is insufficient. Keep live calls disabled for the first deployment.
+
+Both Workers disable `workers.dev` and preview URLs. The private runner has no
+public routes. Only the website Worker should receive the research custom domain.
+
+In Terminal, sign into Cloudflare:
+
+```sh
+uv run pywrangler login
+```
+
+Generate a stable signing secret with a password manager or:
+
+```sh
+uv run python -c 'import secrets; print(secrets.token_hex(32))'
+```
+
+Keep it in your password manager. It signs browser sessions; changing it signs
+testers out. Never put it in Git or a committed configuration file.
+
+## 6. Build, check, and deploy
+
+From this same folder:
+
+```sh
+uv run python build.py
+uv run pywrangler deploy --config wrangler.runner.toml --dry-run
+uv run pywrangler deploy --dry-run
+uv run pywrangler deploy --config wrangler.runner.toml
+uv run pywrangler deploy
+uv run pywrangler secret put WEB_SECRET_KEY
+```
+
+Paste the signing secret when prompted by the last command. The runner is deployed
+first so the website's service binding can resolve it. These deployments are private
+until you attach a domain; missing Access settings/secret fail closed.
+
+After creating the Access application and setting the signing secret, append your
+custom domain to **`wrangler.toml` only**:
+
+```toml
+[[routes]]
+pattern = "research.your-domain.com"
+custom_domain = true
+```
+
+Deploy the website again with `uv run pywrangler deploy`. Keeping the domain in
+configuration preserves it on later deployments. Keep the runner without a domain
+or route. Cloudflare manages the DNS/TLS connection; no Tunnel or external server
+is needed. Confirm the domain in **Workers & Pages → agentic-reframe → Settings →
+Domains & Routes**.
+
+Visit the hostname, sign in, create a project and save a draft. In a separate
+browser/machine, use another invited identity and confirm it has its own project
+list. Sign in again as the first identity and reopen its saved project. Try a
+non-invited address and confirm Access refuses it. The administrator can inspect
+the cohort at `/admin` and publish a brief for independent copies as before.
+
+## 7. Enable real analysis deliberately
+
+Only after the non-AI deployment checks pass:
+
+```sh
+uv run pywrangler secret put OPENAI_API_KEY --config wrangler.runner.toml
+```
+
+Paste the API key into that prompt. It belongs **only to the private runner**.
+Then set `WEB_LIVE_ENABLED = "1"` in **both** production TOML configurations and
+deploy the runner followed by the website again.
+
+The model, reasoning and price estimates come from the existing project config and
+are frozen into each run. An explicit browser authorization queues each analysis.
+Retries stay bounded by the core configuration and its cost reservations. The
+tester's allowance spans their projects and restarts; the deployment cap is shared.
+These are conservative application estimates, not provider-enforced billing limits.
+
+An alarm/runner interruption retains the full allocation, marks the job interrupted,
+and requires explicit human retry consent. A timed-out request might still have
+been billed; it is never automatically launched again by an alarm retry. Existing
+completed checkpoints are reused. Runner configuration errors before execution do
+not incur a model reservation.
+
+## 8. Keep one GitHub repository
+
+The same repository contains core code, the existing local host, and this adapter.
+`build.py` stages only approved source/resources into this folder's ignored `dist/`.
+It replaces the repository's real brief with a neutral scaffold and excludes private
+uploads, existing runs, environment files and the fixture. Unexpected stale files in
+`dist/` block the build. Do not upload the repository as public static assets.
+
+Here, `dist/` is the **Worker bundle staging directory**, not a static HTML site.
+The backend is bundled for execution inside Workers; Flask exposes only its normal
+routes and static assets. You do not need a second repository.
+
+For GitHub-connected deployments, create two Workers Builds projects pointing to
+this repository, one per production Worker. Keep the repository root as their root
+directory so the build can read the core. Configure Node 22 or later and Python
+3.12 or later in the build environment. For both, use this build command; its tool
+installation stays inside the project environment:
+
+```sh
+cd extensions/cloudflare
+python -m venv .venv-build
+.venv-build/bin/python -m pip install 'uv==0.13.4'
+npm ci
+.venv-build/bin/uv sync --locked
+.venv-build/bin/uv run python build.py
+```
+
+Use this deploy command for the runner:
+
+```sh
+cd extensions/cloudflare && .venv-build/bin/uv run pywrangler deploy --config wrangler.runner.toml
+```
+
+For the website:
+
+```sh
+cd extensions/cloudflare && .venv-build/bin/uv run pywrangler deploy
+```
+
+Keep secrets on their respective Workers. Validate manual deployment first. When a
+change updates the runner protocol, deploy the runner before updating the website;
+independent automatic builds do not guarantee that order. Keep automatic deployment
+disabled for branches used for fixture tests.
+The hosted Workers Builds configuration still needs validation on your account;
+the completed native checks used local Wrangler processes.
+
+## Operations and current boundaries
+
+- Full disaster recovery needs both the private R2 revisions and the Durable
+  Object's current `head` pointer. A complete export/restore procedure and drill
+  remain development work before collecting important real research data. Preserve
+  immutable revisions; do not add expiration/deletion to snapshot/result prefixes.
+- The existing report export remains available; it is not a complete storage backup.
+- Do not rename the `Cohort` class, `cohort-v1` object name, Worker/bucket bindings,
+  or `/tmp/agentic-reframe` paths without a migration. Frozen artifacts refer to
+  stable virtual paths. Never rewrite old manifests or ledgers to make a resume fit.
+- This host starts a new cohort. Existing local/Docker projects stay where they are;
+  moving their absolute-path manifests requires a separate explicit migration.
+- Keep production access checks enabled on every application path. Only `/health`
+  exposes a public status response. Do not share raw R2 snapshot URLs or credentials.
+- Ordinary repository tests remain offline. `smoke.py` is an explicit local-runtime
+  integration check; a real deployed paid call has not been made automatically.
+
+Relevant platform documentation:
+[Python Workers](https://developers.cloudflare.com/workers/languages/python/),
+[Flask adapter](https://developers.cloudflare.com/workers/languages/python/packages/flask/),
+[Durable Object alarms](https://developers.cloudflare.com/durable-objects/api/alarms/),
+[R2 bindings](https://developers.cloudflare.com/r2/api/workers/workers-api-reference/).

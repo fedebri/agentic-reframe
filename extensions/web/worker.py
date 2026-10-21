@@ -1,13 +1,12 @@
 """Run authorized web jobs outside HTTP requests, without modifying the core runtime."""
 
-import fcntl
 import logging
 import signal
 from decimal import Decimal
 from pathlib import Path
 from threading import Event
 
-from openai import APIError
+from openai import APIError, OpenAI
 
 from agentic_dt.schemas import RunManifest
 from agentic_dt.workflow import run_exercise
@@ -34,9 +33,11 @@ def public_error(error: Exception) -> str:
     )
 
 
-def work_once(store: WebStore) -> bool:
-    """Execute one queued job; callers must hold the worker's singleton file lock."""
-    job = store.claim_job()
+def work_once(
+    store: WebStore, *, job: dict | None = None, client: OpenAI | None = None
+) -> bool:
+    """Execute a claimed job under the host's singleton coordination contract."""
+    job = job or store.claim_job()
     if job is None:
         return False
     project = store.root / "projects" / job["project_id"]
@@ -64,6 +65,7 @@ def work_once(store: WebStore) -> bool:
             retry_failed=bool(job["retry"]),
             context_claim_ids=[claim.claim_id for claim in manifest.approved_context],
             human_frame_path=Path(manifest.human_frame.source_path),
+            client=client,
         )
     except Exception as failure:
         # A failed job must be settled and visible, not crash the durable worker loop.
@@ -83,6 +85,8 @@ def work_once(store: WebStore) -> bool:
 
 def main() -> None:
     """Start one durable worker; interrupted jobs require fresh human authorization."""
+    import fcntl
+
     from .app import create_app
 
     logging.basicConfig(level=logging.INFO)

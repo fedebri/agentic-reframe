@@ -1,4 +1,8 @@
-# Deploy the invited-tester website with GitHub and Cloudflare
+# Deploy the invited-tester website with Docker and Cloudflare
+
+To host entirely within Cloudflare Workers, use the separate
+[Workers deployment guide](../cloudflare/README.md). This guide describes the
+alternative Docker server plus Cloudflare Tunnel setup.
 
 This guide assumes independent testers, a domain you control in Cloudflare, and
 one always-on machine with Docker Engine and Docker Compose v2. That machine
