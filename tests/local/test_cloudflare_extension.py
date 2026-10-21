@@ -128,13 +128,24 @@ def cohort(tmp_path, monkeypatch):
     workers = types.ModuleType("workers")
     workers.DurableObject = type("DurableObject", (), {})
     workers.WorkerEntrypoint = type("WorkerEntrypoint", (), {})
-    workers.Response = type("Response", (), {})
+
+    class Response:
+        def __init__(self, body, *, status=200, headers=None):
+            self.body = body
+            self.status = status
+            self.headers = headers
+
+    workers.Response = Response
     workers.wsgi = types.SimpleNamespace()
     monkeypatch.setitem(sys.modules, "workers", workers)
+    ffi = types.ModuleType("pyodide.ffi")
+    ffi.create_once_callable = lambda callback: callback
+    monkeypatch.setitem(sys.modules, "pyodide.ffi", ffi)
     spec = importlib.util.spec_from_file_location(
         "cloudflare_cohort_test", ROOT / "extensions/cloudflare/entry.py"
     )
     module = importlib.util.module_from_spec(spec)
+    monkeypatch.setitem(sys.modules, spec.name, module)
     spec.loader.exec_module(module)
     monkeypatch.setattr(module, "DATA_ROOT", tmp_path / "scratch")
 
@@ -179,10 +190,75 @@ def cohort(tmp_path, monkeypatch):
         async def setAlarm(self, value):
             self.alarm = value
 
+    async def block_concurrency(callback):
+        try:
+            return await callback()
+        except Exception:
+            pytest.fail("The request escaped the gate and would reset the object.")
+
     instance = module.Cohort()
-    instance.ctx = types.SimpleNamespace(storage=Storage())
+    instance.ctx = types.SimpleNamespace(
+        storage=Storage(), blockConcurrencyWhile=block_concurrency
+    )
     instance.env = types.SimpleNamespace(RESEARCH=Bucket())
     return instance, module.DATA_ROOT
+
+
+@pytest.mark.parametrize(
+    ("secret", "issuer", "message"),
+    [
+        ("", "https://fictional.cloudflareaccess.com", "WEB_SECRET_KEY"),
+        ("fictional-secret", "fictional.cloudflareaccess.com", "https://TEAM"),
+    ],
+)
+def test_configuration_errors_return_message_inside_gate(
+    cohort, monkeypatch, secret, issuer, message
+):
+    instance, _root = cohort
+    runtime = importlib.import_module("extensions.cloudflare.runtime")
+    monkeypatch.setattr(
+        runtime, "stage_resources", lambda: ROOT / "config/project.yaml"
+    )
+    instance.env.WEB_SECRET_KEY = secret
+    instance.env.WEB_ACCESS_TEAM_DOMAIN = issuer
+    instance.env.WEB_ACCESS_AUD = "fictional-audience"
+    response = asyncio.run(instance.fetch(types.SimpleNamespace(method="GET")))
+    assert response.status == 503
+    assert message in response.body
+    assert response.headers["Cache-Control"] == "no-store"
+    assert instance.ctx.storage.head is None
+    assert not instance.env.RESEARCH.objects
+
+
+def test_request_r2_failure_returns_message_and_restores_committed_head(
+    cohort, monkeypatch
+):
+    instance, root = cohort
+    store = asyncio.run(instance.restore())
+    previous = asyncio.run(instance.checkpoint(store))
+    module = sys.modules[type(instance).__module__]
+    monkeypatch.setattr(module, "hosted_app", lambda env: object())
+
+    class Buffer:
+        def to_py(self):
+            return b"FICTIONAL response"
+
+    async def wsgi_fetch(*args):
+        (root / "uncommitted.txt").write_text("FICTIONAL unsaved change")
+        return types.SimpleNamespace(arrayBuffer=array_buffer, status=200, headers=[])
+
+    async def array_buffer():
+        return Buffer()
+
+    monkeypatch.setattr(module.wsgi, "fetch", wsgi_fetch, raising=False)
+    instance.env.RESEARCH.fail = True
+    response = asyncio.run(instance.fetch(types.SimpleNamespace(method="GET")))
+    assert response.status == 503
+    assert "previous saved snapshot is preserved" in response.body
+    assert instance.ctx.storage.head == previous
+    instance.env.RESEARCH.fail = False
+    asyncio.run(instance.restore())
+    assert not (root / "uncommitted.txt").exists()
 
 
 def test_failed_r2_commit_keeps_previous_durable_head(cohort, monkeypatch):
@@ -237,6 +313,9 @@ def test_production_configs_disable_public_runner_and_live_calls():
     configs = ROOT / "extensions/cloudflare"
     web = tomllib.loads((configs / "wrangler.toml").read_text())
     runner = tomllib.loads((configs / "wrangler.runner.toml").read_text())
+    from extensions.web.identity import AccessIdentity
+
+    AccessIdentity(web["vars"]["WEB_ACCESS_TEAM_DOMAIN"], web["vars"]["WEB_ACCESS_AUD"])
     assert not runner["workers_dev"]
     for config in (web, runner):
         assert not config["preview_urls"]

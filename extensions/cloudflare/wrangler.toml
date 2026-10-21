@@ -34,7 +34,7 @@ binding = "RUNNER"
 service = "agentic-reframe-runner"
 
 [vars]
-WEB_ACCESS_TEAM_DOMAIN = "square-fog-70b1.cloudflareaccess.com"
+WEB_ACCESS_TEAM_DOMAIN = "https://square-fog-70b1.cloudflareaccess.com"
 WEB_ACCESS_AUD = "190d94fb5622a3e2418ac8b3b778390f155972fc1d61b7e42f3de39aa921a503"
 WEB_ADMIN_EMAILS = ""
 WEB_LIVE_ENABLED = "0"

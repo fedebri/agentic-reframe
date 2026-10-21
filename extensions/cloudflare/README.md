@@ -4,9 +4,10 @@ This is a separate host adapter for the existing research website and Python
 engine. It runs entirely on Cloudflare: no Docker server, Tunnel connector, or
 always-on personal computer. The local/Docker host in `extensions/web/` still works.
 
-The local pilot is implemented and tested; it has not been published to a real
-Cloudflare account. See [verification and next development work](DEVELOPMENT_STATUS.md)
-for the completed checks and deployment gates.
+The pilot is implemented and tested locally. The first hosted build has uploaded
+successfully; authenticated production use still needs verification. See
+[verification and next development work](DEVELOPMENT_STATUS.md) for the completed
+checks and deployment gates.
 
 ## What runs where
 
@@ -161,8 +162,11 @@ Keep the other configuration sections. The issuer, AUD and admin email are setti
 not API credentials. The app verifies signed Access tokens; an arbitrary email
 header is insufficient. Keep live calls disabled for the first deployment.
 
-Both Workers disable `workers.dev` and preview URLs. The private runner has no
-public routes. Only the website Worker should receive the research custom domain.
+The website currently enables `workers.dev`; protect that entire hostname with
+Cloudflare Access, including every path. The private runner disables `workers.dev`
+and has no public routes. Both disable preview URLs. Only the website Worker should
+receive a research custom domain. Set its `workers_dev = false` if you later serve
+it exclusively through that protected custom domain.
 
 In Terminal, sign into Cloudflare:
 
@@ -186,15 +190,17 @@ From this same folder:
 ```sh
 uv run python build.py
 uv run pywrangler deploy --config wrangler.runner.toml --dry-run
-uv run pywrangler deploy --dry-run
+uv run pywrangler deploy --env "" --dry-run
 uv run pywrangler deploy --config wrangler.runner.toml
-uv run pywrangler deploy
-uv run pywrangler secret put WEB_SECRET_KEY
+uv run pywrangler deploy --env ""
+uv run pywrangler secret put WEB_SECRET_KEY --env ""
 ```
 
 Paste the signing secret when prompted by the last command. The runner is deployed
-first so the website's service binding can resolve it. These deployments are private
-until you attach a domain; missing Access settings/secret fail closed.
+first so the website's service binding can resolve it. The website is reachable on
+its Access-protected `workers.dev` hostname. Missing Access settings or the session
+secret return a setup error without allowing access. `--env ""` explicitly selects
+the production configuration; never deploy `--env local`.
 
 After creating the Access application and setting the signing secret, append your
 custom domain to **`wrangler.toml` only**:
@@ -205,7 +211,7 @@ pattern = "research.your-domain.com"
 custom_domain = true
 ```
 
-Deploy the website again with `uv run pywrangler deploy`. Keeping the domain in
+Deploy the website again with `uv run pywrangler deploy --env ""`. Keeping the domain in
 configuration preserves it on later deployments. Keep the runner without a domain
 or route. Cloudflare manages the DNS/TLS connection; no Tunnel or external server
 is needed. Confirm the domain in **Workers & Pages → agentic-reframe → Settings →
@@ -255,16 +261,35 @@ routes and static assets. You do not need a second repository.
 
 For GitHub-connected deployments, create two Workers Builds projects pointing to
 this repository, one per production Worker. Keep the repository root as their root
-directory so the build can read the core. Configure Node 22 or later and Python
-3.12 or later in the build environment. For both, use this build command; its tool
-installation stays inside the project environment:
+directory so the build can read the core.
+
+For **each Worker**, open **Settings → Build → Build variables and secrets**:
+
+1. Add the plaintext build variable `SKIP_DEPENDENCY_INSTALL` with value `1`. The
+   custom command below installs the extension's locked dependencies; Cloudflare's
+   automatic root-level `pip install .` is redundant.
+2. Remove a `PYTHON_VERSION` override, especially `3.12` or `3.12.15`. Use the build
+   image's default Python, which meets this extension's `>=3.12` requirement. That
+   avoids requesting the extra interpreter installation seen in the slow build.
+3. Remove a `NODE_VERSION` override unless needed for another reason. The image's
+   default Node meets the extension's `>=22` requirement.
+
+These are **build environment** settings, not Worker runtime variables. Adding
+them to `[vars]` in `wrangler.toml` cannot change the build environment. See
+[Cloudflare's build image settings](https://developers.cloudflare.com/workers/ci-cd/builds/build-image/).
+Do not add root-level Python/Node version files to force downloads for this adapter.
+The deployed WebAssembly runtime and packages remain pinned separately by the
+Workers configuration and `pylock.toml`.
+
+For both Workers, use this build command; `--python` reuses the interpreter already
+selected by the build image, and tool installation stays inside the project:
 
 ```sh
 cd extensions/cloudflare
 python -m venv .venv-build
 .venv-build/bin/python -m pip install 'uv==0.13.4'
 npm ci
-.venv-build/bin/uv sync --locked
+.venv-build/bin/uv sync --locked --python .venv-build/bin/python
 .venv-build/bin/uv run python build.py
 ```
 
@@ -277,15 +302,35 @@ cd extensions/cloudflare && .venv-build/bin/uv run pywrangler deploy --config wr
 For the website:
 
 ```sh
-cd extensions/cloudflare && .venv-build/bin/uv run pywrangler deploy
+cd extensions/cloudflare && .venv-build/bin/uv run pywrangler deploy --env ""
 ```
 
 Keep secrets on their respective Workers. Validate manual deployment first. When a
 change updates the runner protocol, deploy the runner before updating the website;
 independent automatic builds do not guarantee that order. Keep automatic deployment
 disabled for branches used for fixture tests.
-The hosted Workers Builds configuration still needs validation on your account;
-the completed native checks used local Wrangler processes.
+The supplied hosted log confirms that the earlier build/deploy command completed.
+The optimized build variables still need applying and timing on your account.
+Enabling build caching alone is not the primary fix: Cloudflare currently documents
+automatic dependency caching for Node package managers, and this monorepo keeps
+`package.json` under the extension rather than the build root. Do not assume it
+caches `uv` or the WebAssembly packages. See
+[build caching](https://developers.cloudflare.com/workers/ci-cd/builds/build-caching/).
+
+## Troubleshoot first access
+
+The Access issuer must include `https://`. A bare team hostname is invalid. The
+Worker now returns a readable HTTP 503 for an invalid issuer or missing
+`WEB_SECRET_KEY`, rather than letting that error reset its Durable Object and
+surface as a generic Worker/JavaScript exception. Correct the setting and redeploy
+the website; existing project snapshots do not need resetting.
+
+If the generic exception persists, open **Workers & Pages → agentic-reframe →
+Observability → Real-time logs**, start the live log stream and reload the website
+after signing in. Record the exception and timestamp; a successful build proves
+the bundle uploaded, not that authenticated application requests work. Keep tokens,
+cookies and API keys out of shared logs. A 401 after sign-in points instead to the
+Access token, issuer or application AUD; keep signature verification enabled.
 
 ## Operations and current boundaries
 

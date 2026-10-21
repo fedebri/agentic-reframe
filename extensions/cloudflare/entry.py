@@ -75,23 +75,22 @@ class Cohort(DurableObject):
         return head
 
     async def serve(self, request):
-        store = await self.restore()
-        app = hosted_app(self.env)
-        response = await wsgi.fetch(app, request, self.env)
-        # Finish WSGI file iterators before another operation restores scratch files.
-        body = bytes((await response.arrayBuffer()).to_py())
-        await self.checkpoint(store)
-        return Response(
-            body
-            if request.method != "HEAD" and response.status not in {204, 304}
-            else None,
-            status=response.status,
-            headers=list(response.headers),
-        )
-
-    async def fetch(self, request):
+        # Errors must be handled inside the gate: a rejected callback resets the
+        # Durable Object before an outer fetch handler can return a useful message.
         try:
-            return await self.gate(self.serve, request)
+            store = await self.restore()
+            app = hosted_app(self.env)
+            response = await wsgi.fetch(app, request, self.env)
+            # Finish WSGI iterators before another operation restores scratch files.
+            body = bytes((await response.arrayBuffer()).to_py())
+            await self.checkpoint(store)
+            return Response(
+                body
+                if request.method != "HEAD" and response.status not in {204, 304}
+                else None,
+                status=response.status,
+                headers=list(response.headers),
+            )
         except ValueError as error:
             return Response(
                 str(error), status=503, headers={"Cache-Control": "no-store"}
@@ -105,6 +104,9 @@ class Cohort(DurableObject):
                 status=503,
                 headers={"Cache-Control": "no-store"},
             )
+
+    async def fetch(self, request):
+        return await self.gate(self.serve, request)
 
     async def claim(self):
         store = await self.restore()

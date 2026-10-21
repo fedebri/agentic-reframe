@@ -7,7 +7,8 @@ Updated 2026-10-21.
 The Cloudflare Workers adaptation reached a working, locally verified pilot.
 It uses Python Workers, a singleton Durable Object, and private R2 storage. It
 does not require Cloudflare Containers, a separate server, or an always-on laptop.
-It is not yet a verified public production deployment.
+Your first hosted build uploaded successfully, but authenticated production use
+is not yet verified.
 
 The existing core package and canonical exercise/prompt/configuration files are
 unchanged. The adapter is under `extensions/cloudflare/`; small dependency-injection
@@ -17,7 +18,7 @@ passes its tests. Changes have not been committed or pushed automatically.
 ## Completed verification
 
 - Ruff lint and formatting checks passed for the changed Python sources/tests.
-- Ordinary offline pytest: **120 passed, 1 skipped**. The skipped live service
+- Ordinary offline pytest: **123 passed, 1 skipped**. The skipped live service
   test was not enabled.
 - WebAssembly dependencies built successfully using the locked Python Workers
   toolchain. Native checks used Wrangler **4.151.3**.
@@ -33,18 +34,32 @@ passes its tests. Changes have not been committed or pushed automatically.
   a token with the wrong audience.
 - Offline failure checks cover R2 commit failure, data-size rejection, interrupted
   job accounting, append-only artifact merging, and production bundle boundaries.
+- The supplied Cloudflare log records a successful build/deploy in 9m 7s. Most
+  delay preceded the custom build: environment initialization and a requested
+  Python installation. The guide now uses default build-image runtimes and
+  `SKIP_DEPENDENCY_INSTALL=1` to skip the redundant root package installation.
+- First-access regression reproduced in native Wrangler: the bare Access team
+  hostname raises a configuration error inside `blockConcurrencyWhile`, resetting
+  the object and escaping as an uncaught Worker exception. The issuer now includes
+  `https://`, and request error handling runs inside the gate. Offline regressions
+  cover invalid configuration and a failed R2 commit without advancing saved state.
+- With the fix, repeated native requests using that same malformed issuer return
+  readable HTTP 503 setup messages; requests without an Access assertion return
+  HTTP 401. The runtime no longer throws the reproduced configuration exception.
 
-The temporary native preview/fixture processes have been stopped. The original
-port-8787 app and its data were not restarted or modified by these checks.
+The original port-8787 app and its data were not restarted or modified by these
+checks. Native regression checks use a separate temporary cohort and no paid calls.
 
 ## Remaining verification
 
 - Production Wrangler dry-runs did not run: automatic approval review hit a usage
   limit before launching the command. This was a review-service failure, not a
   judgment that the action was unsafe.
-- No real Cloudflare R2 bucket, Access policy, Worker, custom domain or secrets
-  were created/configured. The hosted GitHub/Workers Builds setup is documented,
-  but has not run against your account.
+- Your hosted log confirms the website Worker was uploaded, and its `workers.dev`
+  hostname presents Cloudflare Access sign-in. The corrected first-access bundle
+  still needs deployment and verification after sign-in. The optimized build
+  variables must be applied in each Worker's Build settings and timed on a new run;
+  they are not runtime `[vars]` in Wrangler configuration.
 - No paid model call has been verified from a deployed Worker.
 - The final completed analysis/review has not yet been rechecked after a second
   runtime restart; earlier project/draft restart persistence was verified.
