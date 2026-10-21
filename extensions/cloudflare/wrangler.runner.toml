@@ -22,7 +22,7 @@ binding = "RESEARCH"
 bucket_name = "agentic-reframe-private"
 
 [vars]
-WEB_LIVE_ENABLED = "0"
+WEB_LIVE_ENABLED = "1"
 
 [observability]
 enabled = false

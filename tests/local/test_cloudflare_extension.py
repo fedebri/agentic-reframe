@@ -308,7 +308,7 @@ def test_alarm_recovery_charges_interrupted_job_without_repeating_it(cohort):
         assert db.execute("SELECT charged FROM spending").fetchone()[0] == 100_000
 
 
-def test_production_configs_disable_public_runner_and_live_calls():
+def test_production_configs_enable_budgeted_calls_and_keep_runner_private():
     import tomllib
 
     configs = ROOT / "extensions/cloudflare"
@@ -320,8 +320,18 @@ def test_production_configs_disable_public_runner_and_live_calls():
     assert not runner["workers_dev"]
     for config in (web, runner):
         assert not config["preview_urls"]
-        assert config["vars"]["WEB_LIVE_ENABLED"] == "0"
+        assert config["vars"]["WEB_LIVE_ENABLED"] == "1"
         assert "OPENAI_API_KEY" not in config["vars"]
         assert "DEV_MODE" not in config["vars"]
     assert "routes" not in runner
     assert web["services"][0]["service"] == runner["name"]
+    budgets = web["vars"]
+    assert (
+        Decimal("0")
+        < Decimal(budgets["WEB_RUN_BUDGET_USD"])
+        <= Decimal(budgets["WEB_USER_BUDGET_USD"])
+        <= Decimal(budgets["WEB_TOTAL_BUDGET_USD"])
+    )
+    local = web["env"]["local"]["vars"]
+    assert local["WEB_LIVE_ENABLED"] == "0"
+    assert local["WEB_RUN_BUDGET_USD"] == "0"

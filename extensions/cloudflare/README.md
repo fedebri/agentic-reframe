@@ -153,8 +153,8 @@ WEB_ACCESS_TEAM_DOMAIN = "https://your-team.cloudflareaccess.com"
 WEB_ACCESS_AUD = "your-application-audience"
 WEB_ADMIN_EMAILS = "your-email@example.com"
 WEB_LIVE_ENABLED = "0"
-WEB_RUN_BUDGET_USD = "0.10"
-WEB_USER_BUDGET_USD = "0.50"
+WEB_RUN_BUDGET_USD = "0.50"
+WEB_USER_BUDGET_USD = "2.00"
 WEB_TOTAL_BUDGET_USD = "5.00"
 ```
 
@@ -225,15 +225,30 @@ the cohort at `/admin` and publish a brief for independent copies as before.
 
 ## 7. Enable real analysis deliberately
 
-Only after the non-AI deployment checks pass:
+The current production configurations enable live analysis on both Workers, with
+the configured estimated caps: **$0.50 per run, $2.00 per tester across their projects,
+and $5.00 across the deployment**. Local development stays disabled with zero
+budgets. For a new staging installation, keep the production live flags at `"0"`
+until the non-AI deployment checks pass.
+
+Before enabling the website for testers, add the key as a runtime **Secret** on
+**agentic-reframe-runner**, using **Settings → Variables and Secrets → Add**:
+name `OPENAI_API_KEY`, type **Secret**, then save and deploy. Do not add it to the
+website Worker, Build variables, or Git. Alternatively, from Terminal:
 
 ```sh
 uv run pywrangler secret put OPENAI_API_KEY --config wrangler.runner.toml
 ```
 
 Paste the API key into that prompt. It belongs **only to the private runner**.
-Then set `WEB_LIVE_ENABLED = "1"` in **both** production TOML configurations and
-deploy the runner followed by the website again.
+Both production TOML configurations now set `WEB_LIVE_ENABLED = "1"`. Commit/push
+the configuration changes and deploy **the runner first, then the website**. This
+activation requires updating both Workers, even if an earlier website-only fix did
+not. Confirm the browser shows that real AI requests are enabled.
+
+Open a project, save the independent interpretation, preview a request, check the
+authorization checkbox, and choose **Run AI analysis**. This is the action that
+launches the paid call; enabling the feature alone does not queue an analysis.
 
 The model, reasoning and price estimates come from the existing project config and
 are frozen into each run. An explicit browser authorization queues each analysis.

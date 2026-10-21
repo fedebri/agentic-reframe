@@ -37,9 +37,9 @@ service = "agentic-reframe-runner"
 WEB_ACCESS_TEAM_DOMAIN = "https://square-fog-70b1.cloudflareaccess.com"
 WEB_ACCESS_AUD = "190d94fb5622a3e2418ac8b3b778390f155972fc1d61b7e42f3de39aa921a503"
 WEB_ADMIN_EMAILS = ""
-WEB_LIVE_ENABLED = "0"
-WEB_RUN_BUDGET_USD = "0.10"
-WEB_USER_BUDGET_USD = "0.50"
+WEB_LIVE_ENABLED = "1"
+WEB_RUN_BUDGET_USD = "0.50"
+WEB_USER_BUDGET_USD = "2.00"
 WEB_TOTAL_BUDGET_USD = "5.00"
 
 [observability]
