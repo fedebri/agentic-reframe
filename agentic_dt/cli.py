@@ -1,4 +1,4 @@
-"""Validate inputs, demonstrate provenance, or prepare/run one reasoning agent."""
+"""Version 2 CLI: validate, run, review, evaluate, compile, and rehearse."""
 
 import argparse
 from decimal import Decimal, InvalidOperation
@@ -7,101 +7,132 @@ from pathlib import Path
 import yaml
 from openai import APIError
 
-from .config import DemoPaths, load_config
-from .demo import run_demo
-from .framing import run_framing
-from .inputs import load_inputs
-from .orchestrator import run_first_pass
+from .evals import evaluate_run
+from .reports import compile_reports
+from .review import apply_review, export_review
+from .tutorial import run_tutorial
+from .workflow import run_exercise, validate_project
 
 
 def main(argv: list[str] | None = None) -> int:
-    """Validate inputs and display their inventory, or exit with a clear error."""
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
-    validate = commands.add_parser("validate", help="Check and list configured inputs")
+
+    validate = commands.add_parser("validate", help="Validate all configured inputs")
     validate.add_argument("--config", type=Path, default=Path("config/project.yaml"))
-    validate.add_argument(
-        "--brief", type=Path, help="Override the brief; relative to the project root"
+
+    frame = commands.add_parser(
+        "frame", help="Create an independent human framing worksheet"
     )
-    demo = commands.add_parser(
-        "provenance-demo", help="Append a fictional claim history"
+    frame.add_argument("--exercise", default="frame_challenge")
+    frame.add_argument("--author", required=True)
+    frame.add_argument("--out", type=Path, required=True)
+
+    run = commands.add_parser("run", help="Prepare or resume one exercise")
+    run.add_argument("--config", type=Path, default=Path("config/project.yaml"))
+    run.add_argument("--exercise", required=True)
+    run.add_argument("--out", type=Path)
+    run.add_argument("--evidence", type=Path, action="append", default=[])
+    run.add_argument("--context-claim", action="append", default=[])
+    run.add_argument("--human-frame", type=Path)
+    run.add_argument("--critic", action="store_true")
+    run.add_argument("--live", action="store_true")
+    run.add_argument("--budget-usd", type=Decimal)
+    run.add_argument("--retry-failed", action="store_true")
+
+    review = commands.add_parser("review", help="Export or apply human decisions")
+    mode = review.add_mutually_exclusive_group(required=True)
+    mode.add_argument("--run", type=Path, help="Completed model run to review")
+    mode.add_argument("--apply", type=Path, help="Edited review worksheet to apply")
+    review.add_argument("--out", type=Path)
+    review.add_argument("--reviewer")
+    review.add_argument("--evidence", type=Path, action="append", default=[])
+
+    evaluate = commands.add_parser("eval", help="Evaluate one saved run")
+    evaluate.add_argument("--run", type=Path, required=True)
+    evaluate.add_argument("--out", type=Path, required=True)
+    evaluate.add_argument("--assessment", type=Path)
+
+    compile_command = commands.add_parser(
+        "compile", help="Compile evidence-qualified reports"
     )
-    demo.add_argument("--config", type=Path, default=Path("config/project.yaml"))
-    first_pass = commands.add_parser("first-pass", help="Preview or run exercise 1")
-    first_pass.add_argument("--config", type=Path, default=Path("config/project.yaml"))
-    first_pass.add_argument("--brief", type=Path, help="Brief relative to project root")
-    first_pass.add_argument("--live", action="store_true", help="Send inputs to OpenAI")
-    first_pass.add_argument(
-        "--budget-usd", type=Decimal, help="Approved per-run USD budget"
+    compile_command.add_argument("--ledger", type=Path, required=True)
+    compile_command.add_argument("--out", type=Path, required=True)
+
+    tutorial = commands.add_parser(
+        "tutorial", help="Run an isolated, zero-cost fictional rehearsal"
     )
-    framing = commands.add_parser("frame", help="Continue a reviewed first pass")
-    framing.add_argument("--config", type=Path, default=Path("config/project.yaml"))
-    framing.add_argument("--from-first-pass", type=Path, required=True)
-    framing.add_argument("--review", type=Path, required=True, help="Bound review JSON")
-    framing.add_argument("--live", action="store_true", help="Send inputs to OpenAI")
-    framing.add_argument("--budget-usd", type=Decimal, help="Total new-call USD budget")
+    tutorial.add_argument("--config", type=Path, default=Path("config/project.yaml"))
+    tutorial.add_argument("--out", type=Path, required=True)
+
     try:
         args = parser.parse_args(argv)
     except InvalidOperation:
         parser.error("--budget-usd must be a decimal amount, for example 0.10")
-    config_path = args.config.resolve()
-    # The repository contract places configuration at <project>/config/project.yaml.
-    project_root = config_path.parent.parent
-    if args.command in {"first-pass", "frame"}:
-        try:
-            if args.command == "first-pass":
-                run_first_pass(config_path, args.brief, args.live, args.budget_usd)
-            else:
-                run_framing(
-                    config_path,
-                    args.from_first_pass,
-                    args.review,
-                    args.live,
-                    args.budget_usd,
-                )
-        except APIError as error:
-            parser.exit(
-                2,
-                f"OpenAI request failed: {type(error).__name__}; "
-                f"HTTP {getattr(error, 'status_code', 'unavailable')}; "
-                f"request ID {getattr(error, 'request_id', 'unavailable')}. "
-                "See the printed run log and status for completed stages.\n",
-            )
-        except (OSError, ValueError, KeyError, TypeError, yaml.YAMLError) as error:
-            parser.exit(2, f"{args.command.capitalize()} run failed: {error}\n")
-        return 0
-    if args.command == "provenance-demo":
-        try:
-            settings = yaml.safe_load(config_path.read_text(encoding="utf-8"))
-            paths = DemoPaths.model_validate(settings["paths"]["outputs"])
-            run_demo(project_root / paths.graph, project_root / paths.logs)
-        except (OSError, ValueError, KeyError, TypeError, yaml.YAMLError) as error:
-            parser.exit(
-                2, f"Provenance demonstration failed ({config_path}): {error}\n"
-            )
-        return 0
-    try:
-        config = load_config(config_path)
-        inventory = load_inputs(config, project_root, args.brief)
-    except (OSError, ValueError, yaml.YAMLError) as error:
-        parser.exit(2, f"Input validation failed ({config_path}): {error}\n")
 
-    print("Input validation passed (file/schema checks only; no agents executed).")
-    print(f"Project root: {project_root}")
-    print(f"Config: {config_path}")
-    print(f"Brief: {inventory.brief.path}")
-    print(f"\nAgents ({len(inventory.agents)}):")
-    for agent_id, document in inventory.agents.items():
-        role = "synthesis" if agent_id == config.agents.synthesis.id else "reasoning"
-        print(f"  {agent_id} [{role}]: {document.path}")
-    print(f"\nExercises ({len(inventory.exercises)}, numeric order):")
-    for exercise in sorted(config.exercise_registry, key=lambda item: item.order):
-        print(
-            f"  {exercise.order:2}. {exercise.id}: "
-            f"{inventory.exercises[exercise.id].path}"
+    try:
+        if args.command == "frame":
+            args.out.parent.mkdir(parents=True, exist_ok=True)
+            with args.out.open("x", encoding="utf-8") as stream:
+                yaml.safe_dump(
+                    {
+                        "author_id": args.author,
+                        "exercise_id": args.exercise,
+                        "framing": "",
+                        "observations": [],
+                        "assumptions": [],
+                        "alternative_frame": "",
+                        "open_questions": [],
+                    },
+                    stream,
+                    sort_keys=False,
+                )
+            print(f"Complete your interpretation before using AI: {args.out.resolve()}")
+        elif args.command == "validate":
+            config = validate_project(args.config)
+            print(
+                f"Validated {config.project.name} {config.project.version}: "
+                f"{len(config.exercises)} exercises"
+            )
+        elif args.command == "run":
+            directory = run_exercise(
+                args.config,
+                args.exercise,
+                args.out,
+                args.evidence,
+                args.critic,
+                args.live,
+                args.budget_usd,
+                args.retry_failed,
+                context_claim_ids=args.context_claim,
+                human_frame_path=args.human_frame,
+            )
+            print(f"Run directory: {directory}")
+        elif args.command == "review":
+            if args.run is not None:
+                if args.out is None or not args.reviewer:
+                    raise ValueError("Review export requires --out and --reviewer")
+                worksheet = export_review(
+                    args.run, args.out, args.reviewer, args.evidence
+                )
+                print(f"Review worksheet: {worksheet}")
+            else:
+                print(f"Review receipt: {apply_review(args.apply)}")
+        elif args.command == "eval":
+            print(f"Eval report: {evaluate_run(args.run, args.out, args.assessment)}")
+        elif args.command == "compile":
+            print(f"Report snapshot: {compile_reports(args.ledger, args.out)}")
+        else:
+            print(f"Tutorial: {run_tutorial(args.config, args.out)}")
+    except APIError as error:
+        parser.exit(
+            2,
+            f"OpenAI request failed: {type(error).__name__}; "
+            f"HTTP {getattr(error, 'status_code', 'unavailable')}; "
+            f"request ID {getattr(error, 'request_id', 'unavailable')}\n",
         )
-    print("\nOptional HTML/PDF source material is not required or loaded.")
-    print("Review the brief's substance before any future live model run.")
+    except (OSError, ValueError, KeyError, TypeError, yaml.YAMLError) as error:
+        parser.exit(2, f"{args.command} failed: {error}\n")
     return 0
 
 

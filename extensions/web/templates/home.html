@@ -1,0 +1,27 @@
+{% extends 'base.html' %}
+{% block content %}
+<h2>Investigate a design challenge</h2>
+<p>Record your interpretation, compare it with an AI analysis, then decide what needs investigation.</p>
+{% if has_project %}
+<p><a href="{{ url_for('project') }}">Continue your project</a>. {% if signed_in %}Your saved projects and drafts follow your sign-in across devices.{% else %}Local preview projects belong to this browser. Deployment uses individual sign-in.{% endif %}</p>
+<p><a href="{{ url_for('restart') }}">Revise the brief and restart</a> | <a href="{{ url_for('restart', blank='1') }}">Start a blank project</a></p>
+{% else %}
+<h3>Create your project</h3>
+{% include 'project_form.html' %}
+{% endif %}
+{% if session.get('claim_local_user') %}
+<form method="post" action="{{ url_for('claim_local_projects') }}"><input type="hidden" name="csrf" value="{{ csrf }}"><p>This browser also has projects from the local preview. Link those projects and their existing spending history to {{ identity_email }}.</p><button type="submit">Link my local projects to this sign-in</button></form>
+{% endif %}
+{% if templates %}
+<h3>Available briefs</h3>
+<p>Start your own independent project from a shared brief. Other testers' evidence, answers, and reviews are not copied.</p>
+<ul>{% for template in templates %}<li><a href="{{ url_for('start_template', template_id=template.id) }}">{{ template.name }}</a></li>{% endfor %}</ul>
+{% endif %}
+<hr>
+<h3>Try the worked example</h3>
+<p>A fictional library case shows two inquiry rounds and a correction. Its evidence, AI responses, and human reviews are supplied examples. It makes no AI calls.</p>
+<form method="post" action="{{ url_for('example') }}">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <button type="submit">Open fictional example</button>
+</form>
+{% endblock %}

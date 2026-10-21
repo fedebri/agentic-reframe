@@ -1,0 +1,66 @@
+{% extends 'base.html' %}
+{% block title %}Human review — Agentic Reframe{% endblock %}
+{% block content %}
+<h2>Review the interpretation</h2>
+<p>Judge what the supplied evidence justifies now. You do not need to predict whether future interviews will agree.</p>
+<p>A statement can be supported for these interviewees while remaining unrepresentative of a wider population. Check that its wording respects that scope.</p>
+{% if applied %}<p>This review has been applied and is read-only. Its history is preserved.</p>{% endif %}
+{% if prepared and not applied %}<p>A saved review is awaiting recovery. Continue to apply those exact decisions.</p>{% endif %}
+{% if critique %}
+<h3>Audit findings</h3>
+<p>{{ critique.recommendation }}. Next action: {{ critique.next_action }}.</p>
+<ul>{% for issue in critique.issues %}<li>{{ issue.severity }}: {{ issue.message }}</li>{% endfor %}</ul>
+{% endif %}
+<form method="post">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <input type="hidden" name="project_id" value="{{ project_id }}">
+  <fieldset {% if applied or prepared %}disabled{% endif %}>
+    <legend>Review each claim against the current evidence</legend>
+    <p>Keep a useful, appropriately scoped interpretation; revise wording that needs narrowing; exclude a claim you cannot retain. A tentative claim can still be kept for investigation.</p>
+    <p>Supported means the sources justify a claim's meaning and scope. Tentative means it needs further checking. Contested means there is conflicting evidence. Only kept or revised claims can be recorded as Supported. Excluded claims remain outside the findings.</p>
+    {% for claim in analysis.claims %}
+    {% set i = loop.index0 %}{% set decision = data.decisions[i] %}
+    <h3>{{ loop.index }}. {{ claim.statement }}</h3>
+    <details><summary>Model details</summary><p>Claim type: {{ claim.claim_type }}. Model confidence: {{ claim.confidence }}. This is the model's self-assessment, not evidence that the claim is correct.</p></details>
+    <p>{{ claim.public_reasoning_summary }}</p>
+    <p>Evidence: {% for citation in claim.citations %}<a href="#passage-{{ citations.index(citation) + 1 }}">[{{ citations.index(citation) + 1 }}]</a>{% else %}No exact passage citation.{% endfor %}</p>
+    {% set selected_action = 'revise' if decision.revised_statement else {'accept': 'keep', 'reject': 'exclude'}.get(decision.decision, '') %}
+    <p><label>Is this an accurate, appropriately scoped interpretation of the supplied evidence?<br><select name="decision_{{ i }}" required>
+      <option value="">Choose a decision</option>
+      {% for value, label in [('keep', 'Keep'), ('revise', 'Revise'), ('exclude', 'Exclude')] %}<option value="{{ value }}" {% if selected_action == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
+    </select></label></p>
+    <p><label>How well do the supplied sources support the wording you keep or revise?<br><select name="status_{{ i }}">
+      {% for value, label in [('proposed', 'Tentative'), ('supported', 'Supported'), ('contested', 'Contested')] %}<option value="{{ value }}" {% if decision.validation_status == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
+      {% if decision.validation_status not in ['proposed', 'supported', 'contested'] %}<option value="{{ decision.validation_status }}" selected>{{ decision.validation_status.replace('_', ' ').capitalize() }}</option>{% endif %}
+    </select></label></p>
+    <p><label>What in the supplied evidence justifies your decision?<br><textarea name="reason_{{ i }}" rows="3" cols="40" required>{{ decision.public_reasoning_summary }}</textarea></label></p>
+    <details {% if decision.revised_statement %}open{% endif %}><summary>Revised wording — complete when choosing Revise</summary>
+      <p>If a sentence combines an observation and a broader conclusion, retain the assertion you can justify. Enter revised wording and your confidence, then choose Revise above. These fields are applied only for Revise.</p>
+      <p>The original is retained and the new hypothesis is attributed to you.</p>
+      <p><label>Revised claim<br><textarea name="revision_{{ i }}" rows="3" cols="40">{{ decision.revised_statement or '' }}</textarea></label></p>
+      <p><label>Your confidence (0–1, required for a revision) <input type="number" name="confidence_{{ i }}" min="0" max="1" step="0.01" value="{{ decision.revision_confidence if decision.revision_confidence is not none else '' }}"></label></p>
+    </details>
+    <hr>
+    {% endfor %}
+  </fieldset>
+  <fieldset {% if applied or prepared %}disabled{% endif %}>
+    <legend>Your interpretation and next investigation</legend>
+    <h3>Your overall interpretation</h3>
+    {% set reflection = data.reflection or {} %}
+    <p><label>Your revised or defended frame<br><textarea name="revised_frame" rows="4" cols="40" required>{{ reflection.get('revised_frame', '') }}</textarea></label></p>
+    <p><label>Where do you still disagree, and why?<br><textarea name="disagreement" rows="3" cols="40" required>{{ reflection.get('disagreement', '') }}</textarea></label></p>
+    <p><label>Assumptions you reconsidered (one per line)<br><textarea name="assumptions_reconsidered" rows="3" cols="40" required>{{ reflection.get('assumptions_reconsidered', []) | join('\n') }}</textarea></label></p>
+    <h3>Next investigation</h3>
+    <p>Future research questions guide your next step. They do not determine whether a current claim accurately represents the supplied notes.</p>
+    {% if investigation_questions %}<details><summary>AI-suggested research questions</summary><p>Use these as starting points. Make your own question specific about a missing perspective, a competing explanation, or the limits of the current evidence.</p><ul>{% for question in investigation_questions %}<li>{{ question }}</li>{% endfor %}</ul></details>{% endif %}
+    <p><label>Which missing perspective or specific uncertainty should you investigate next?<br><textarea name="next_research_question" rows="3" cols="40" required>{{ reflection.get('next_research_question', '') }}</textarea></label></p>
+    <p><label>What evidence would challenge your interpretation or justify broadening it?<br><textarea name="revision_trigger" rows="3" cols="40" required>{{ reflection.get('revision_trigger', '') }}</textarea></label></p>
+    <fieldset><legend>Sources you considered (select at least one)</legend>
+    {% for source in manifest.sources %}<p><label><input type="checkbox" name="reflection_evidence" value="{{ source.source_id }}" {% if source.source_id in reflection.get('evidence_refs', []) %}checked{% endif %}> {{ source.source_id }}</label></p>{% endfor %}
+    </fieldset>
+  </fieldset>
+  {% if not applied %}<p><button type="submit">{% if prepared %}Recover saved review{% else %}Apply my review and reflection{% endif %}</button></p>{% endif %}
+</form>
+{% include 'evidence_catalog.html' %}
+<p><a href="{{ url_for('run', run_id=run_id) }}">Return to comparison</a></p>
+{% endblock %}

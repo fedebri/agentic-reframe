@@ -1,348 +1,137 @@
-# Agentic Reframe
+# Agentic Reframe 2.0
 
-> **A multi-agent engine for structured inquiry, challenge framing, and epistemic synthesis.**
+Help design teams develop and revise their own problem understanding through
+attributable evidence, independent interpretations, and structured challenge.
 
-**Agentic Reframe** is an experimental exploration of agentic software design applied to the earliest stages of problem solving.
+Agentic Reframe is a compact teaching runtime for the front end of a design
+thinking project. Its learning unit is an inquiry cycle: record your own frame,
+compare an independent AI interpretation, collect discriminating evidence, and
+justify a revision. It teaches agentic building blocks without making
+multi-agent complexity the default.
 
-In my experience with structured innovation and design processes, two recurring limitations emerge.
+A human reviews every claim before it enters the append-only ledger. Acceptance
+for investigation is not factual validation. Reports distinguish human framing
+decisions from accepted, evidence-supported findings and preserve disagreement.
 
-- **Limited diversity of reasoning** reduces the breadth of exploration, narrows the space of possible interpretations, and increases the likelihood of converging prematurely on familiar solutions.
+## Why version 2
 
-- **Insufficient epistemic traceability** makes it difficult to reconstruct the logical path connecting observations, evidence, assumptions, hypotheses, validations, and decisions. As a result, important design choices may become influenced by intuition, cognitive biases, or group dynamics without making those influences explicit.
+Version 1 proved the mechanics with four perspective agents and a synthesis
+agent on every exercise. Version 2 keeps its strongest controls while making
+specialization conditional:
 
-Agentic Reframe explores whether a collection of specialized reasoning agents can produce richer and more balanced challenge framings than a single reasoning process. In parallel, it builds a provenance-aware knowledge graph that makes the evolution of ideas explicit, allowing conclusions, assumptions, supporting evidence, and contradictions to remain connected and auditable throughout the design process.
+- one analyst applies systems, human, operational, and opportunity lenses;
+- an optional critic has a different audit contract and creates no claims;
+- one runner handles every exercise and every resume;
+- an independent human frame is frozen before framing runs and withheld from AI;
+- one human-review path records decisions, reflection, and later corrections;
+- one append-only ledger supports deterministic replay;
+- exact passage checks are separate from human-assessed research and reasoning
+  quality; better human investigation is an evaluation target, not a claim.
 
-Rather than generating solutions, the project focuses on a more fundamental question:
+The local version 1 source and fictional run archive is preserved under
+`.archive/version-1.0/`. That directory is ignored by Git.
 
-> **How can multiple specialized AI agents help us construct a better representation of a problem before ideation begins?**
-
-The system takes a challenge brief together with optional supporting material and executes a sequence of structured analytical exercises inspired by design thinking, systems thinking, and collaborative reasoning. Independent reasoning agents analyze the problem from complementary perspectives before a synthesis agent consolidates the findings into a coherent, traceable challenge framing.
-
-The long-term objective is not to replace human judgment, but to augment it through structured inquiry, explicit reasoning, and transparent provenance.
-
----
-
-# Project Status
-
-> **Early development**
-
-The local CLI supports input validation, a fictional provenance demonstration,
-a Systems Strategist first pass, and continuation through three independent
-perspectives and synthesis. Model commands preview by default; `--live` explicitly
-enables API calls. The current reasoning workflow covers the first exercise,
-Frame Challenge, and produces a provisional report for human review.
-
-From the repository root, using Python 3.11 or later:
+## Quick start
 
 ```bash
 python3 -m venv .venv
 .venv/bin/python -m pip install -e '.[dev]'
-.venv/bin/agentic-dt validate --brief docs/examples/library_brief.md
-.venv/bin/agentic-dt provenance-demo
-.venv/bin/agentic-dt first-pass --brief docs/examples/library_brief.md
+.venv/bin/agentic-dt validate
+.venv/bin/agentic-dt tutorial --out outputs/v2/tutorial
 .venv/bin/python -m pytest
 ```
 
-The example brief is explicitly fictional. Omit `--brief` to inspect the primary
-`docs/brief.md`, which is currently a placeholder. Passing validation checks
-structure and readable files, not the quality or completeness of the challenge.
+Record your own interpretation before looking at AI output. The worksheet starts
+blank; complete all fields yourself. Then preview a scoped request without an
+API call:
 
-See the [workflow guide](docs/workflow.md) for API-key setup, explicit run
-budgets, human review, synthesis, and output inspection. Tests run offline.
-Generated requests, responses, reports, graph histories, logs, and human evidence
-remain local and are excluded from Git. The fictional example brief and
-deterministic test code are included so a fresh checkout can be verified.
-
----
-
-# Project Scope
-
-## Challenge framing before solution generation
-
-Agentic Reframe deliberately stops before ideation and prototyping.
-
-Its objective is not to generate solutions, but to improve the quality of the problem representation that precedes solution generation.
-
-The system supports the framing phase by combining:
-
-- multiple independent reasoning agents with complementary analytical perspectives;
-- structured agent-to-agent synthesis;
-- provenance-aware logical tracking;
-- human-in-the-loop contributions;
-- structured design exercises.
-
-The intended outcome is a richer understanding of the challenge, broader exploration of possible interpretations, and a transparent record of how conclusions emerged before any design solution is proposed.
-
----
-
-## Independent reasoning
-
-Multiple agents approach the same exercise independently using different analytical lenses.
-
-Diversity of reasoning is treated as a feature rather than a source of inconsistency.
-
----
-
-## Explicit synthesis
-
-A dedicated synthesis agent merges observations while preserving:
-
-- agreement;
-- disagreement;
-- uncertainty;
-- supporting evidence;
-- provenance.
-
-The goal is not forced consensus.
-
----
-
-## Traceability
-
-Every important conclusion should answer:
-
-- Where did it originate?
-- Which agent proposed it?
-- Which evidence supports it?
-- Has it been validated?
-- Has it been challenged later?
-
-The system therefore maintains an append-only provenance graph rather than a mutable collection of notes.
-
----
-
-## Human-in-the-loop
-
-Human expertise is considered a first-class input.
-
-Interviews, field observations, photographs, documents, and research notes may all enrich the analytical process.
-
-The system should also recognize when information is missing and generate templates or guidance for collecting it.
-
----
-
-# High-Level Workflow
-
-```text
-docs/brief.md
-config/project.yaml
-human_input/ and docs/user_input/
-exercises/
-        |
-        v
-Input manifest and ordered exercise registry
-        |
-        v
-Per-exercise execution bundle
-        |
-        v
-Independent reasoning agents
-  - Systems Strategist   (Analyst)
-  - Human Interpreter    (Diplomat)
-  - Operational Realist  (Sentinel)
-  - Opportunity Scout    (Explorer)
-        |
-        v
-Sovereign Synthesizer
-        |
-        v
-Append-only provenance graph + structured JSONL logs
-        |
-        v
-Final framing artifacts for later ideation and prototyping
+```bash
+.venv/bin/agentic-dt frame \
+  --author your-name --out human_input/frame-01.yaml
+# Complete human_input/frame-01.yaml before the next command.
+.venv/bin/agentic-dt run \
+  --exercise frame_challenge \
+  --human-frame human_input/frame-01.yaml \
+  --out outputs/v2/runs/first-frame \
+  --critic
 ```
 
-The intended full workflow treats each exercise as an independent action first. The synthesizer then
-confronts its takeaways with prior exercise takeaways, records logical
-connections, classifies inconsistency, and blocks deprecated claims from final
-outputs unless stronger later evidence supersedes them.
+Add `--live --budget-usd 0.10` to authorize model calls. Evidence is assigned
+explicitly with repeated `--evidence PATH` arguments; the runtime never scans
+human-input directories.
 
----
-
-# Expected Outputs
-
-Each execution should progressively construct a structured representation of the problem, including:
-
-- framed challenge;
-- stakeholder definition;
-- value proposition canvases;
-- landscape and constraint analysis;
-- opportunity reframings ("How Might We");
-- logical connections between observations;
-- provenance-tagged knowledge graph;
-- project plan supporting future ideation.
-
----
-
-# Repository Structure
+## Repository layout and tests
 
 ```text
-.
-|-- AGENTS.md
-|-- README.md
-|-- pyproject.toml
-|-- agentic_dt/
-|-- tests/
-|-- agents/
-|   |-- analyst.md
-|   |-- diplomat.md
-|   |-- sentinel.md
-|   |-- explorer.md
-|   `-- sythesizer.md
-|-- config/
-|   `-- project.yaml
-|-- docs/
-|   |-- brief.md
-|   |-- workflow.md
-|   |-- examples/
-|   |   `-- library_brief.md
-|   |-- process_templates/
-|   |   |-- hitl_templates.md
-|   |   `-- generated/
-|   `-- user_input/
-|-- exercises/
-|   |-- README.md
-|   |-- 1_frame_challenge.md
-|   |-- 2_align_impact_goals.md
-|   |-- ...
-|   `-- 13_value_proposition_canvas.md
-|-- human_input/
-|   |-- interviews/
-|   |   |-- general/
-|   |   |-- expert/
-|   |   `-- group/
-|   |-- photos/
-|   |-- resource_flow/
-|   `-- secondary_research/
-|-- mcp/
-|   `-- manifest.yaml
-|-- outputs/
-|   |-- exercises/
-|   |-- final/
-|   |-- graph/
-|   `-- logs/
-`-- skills/
-    `-- design-sprint-agentic/
-        |-- SKILL.md
-        |-- agents/openai.yaml
-        `-- references/artifact-contracts.md
+agentic_dt/          Core implementation, shared by the CLI and all tests
+tests/conftest.py   Live-test consent gate and offline network boundary
+tests/local/        Unit, filesystem, recovery, tutorial, and offline SDK tests
+tests/live/         Explicitly budgeted real-API smoke test
+config/             Typed project configuration
+outputs/v2/         Generated artifacts, ignored by Git
+.archive/           Local historical backups, ignored by Git
 ```
 
-Output directories and human evidence drop zones are local runtime paths; they
-are not distributed with the repository.
+Normal `pytest` runs local tests and skips live tests, even if an API key exists.
+Local tests block network connections. To deliberately run the live smoke test,
+set `OPENAI_API_KEY` in your environment, then use:
 
-The repository is intentionally organized around the separation of:
+```bash
+.venv/bin/python -m pytest tests/live \
+  --run-live --live-budget-usd 0.05 -q -s
+```
 
-- reasoning: agent profiles in `agents/`;
-- orchestration policy: `AGENTS.md` and `config/project.yaml`;
-- MCP-shaped access boundaries: `mcp/manifest.yaml`;
-- shared workflow knowledge: `skills/design-sprint-agentic/`;
-- external context and human evidence: `docs/`, `human_input/`, and
-  `exercises/`;
-- canonical exercise definitions: Markdown outlines in `exercises/*.md`;
-- optional local source material: ignored imported HTML and PDF assets in
-  `exercises/`;
-- observability and outputs: `outputs/logs/`, `outputs/graph/`,
-  `outputs/exercises/`, and `outputs/final/`.
+This uses fictional inputs, an isolated run directory, and no automatic retries.
+It checks one analyst call and a checkpoint-only resume; it never approves claims
+or writes the ledger. Each invocation is a new budgeted run and can incur charges.
+See [the test guide](tests/README.md) for scope and safeguards.
 
----
+New runs use `gpt-6-luna` with explicit `reasoning_effort: none`, keeping the
+initial migration close to the previous non-reasoning workflow. Model, effort,
+and estimated rates are frozen per run. Existing manifests retain their saved
+model and request settings. See [the model documentation](https://developers.openai.com/api/docs/models/gpt-6-luna)
+for supported capabilities and current prices; live account access and output
+quality still need verification.
 
-# Technical Goals
+`agentic_dt.egg-info/` is generated setuptools packaging metadata, not core code
+or project evidence. The stale version 0.1.0 copy was moved to
+`.archive/generated-packaging/`. Editable installation can recreate it; it is
+already ignored by Git and does not need to be versioned or archived repeatedly.
 
-The project explores several software engineering concepts:
-
-- multi-agent orchestration;
-- planning-first development;
-- repository-specific AI configuration;
-- Model Context Protocol (MCP);
-- reusable agent skills;
-- structured logging;
-- provenance-aware reasoning;
-- modular architecture;
-- least-privilege agent design.
-
----
-
-# Current Architecture
-
-The runtime validates configured inputs, stores append-only provenance, and
-runs the first exercise through independent reasoning and synthesis. A saved
-human review binds continuation to the exact first-pass response. Python
-validates model outputs and writes a provisional report; agents have no direct
-filesystem or graph tools. Reasoning calls currently run sequentially.
-
-The diagram below shows the broader target architecture. Cross-exercise
-execution, general review/resume, evidence ingestion, collection-template
-generation, MCP services, and final artifact compilation remain planned.
+## Architecture
 
 ```text
-Repo-specific configuration
-  - AGENTS.md
-  - config/project.yaml
-  - mcp/manifest.yaml
-  - skills/design-sprint-agentic/
-        |
-        v
-Planned local runtime
-  - config loader
-  - exercise loader
-  - least-privilege task bundler
-  - MCP-shaped local adapters
-  - structured logger
-  - append-only graph store
-        |
-        v
-Per-exercise agent execution
-  - four independent reasoning agents
-  - one Sovereign Synthesizer
-        |
-        v
-Tracked artifacts
-  - outputs/exercises/
-  - outputs/graph/provenance_events.jsonl
-  - outputs/logs/run_events.jsonl
-  - docs/process_templates/generated/
-  - outputs/final/
+human frame (not sent to AI)    brief + exercise + selected evidence/prior claims
+              |                                  |
+              |                    analyst + optional bounded critic
+              |                                  |
+              +----------> comparison packet <---+
+                                    |
+                        human judgment + reflection
+                                    |
+                            append-only ledger
+                                    |
+                 new evidence -> new run/correction -> revised frame
+                                    |
+                      evaluation + deterministic reports
 ```
 
-The design intentionally separates first-pass reasoning from synthesis. The
-four reasoning agents cannot write the provenance graph or final artifacts. The
-Sovereign Synthesizer is the only agent allowed to append graph events for
-exercise synthesis, conflict classification, claim deprecation, and logical
-connections across exercises.
+Model outputs never receive filesystem, shell, web, or graph-write tools.
+Python owns source selection, validation, persistence, budgets, retries,
+checkpoints, review, and compilation.
 
+See [the workflow](docs/workflow.md) and [the architecture](docs/architecture.md).
+The zero-cost tutorial demonstrates two inquiry rounds and an append-only
+correction; its human judgments and evidence are explicitly fictional.
 
----
+## Scope
 
-# Future Work
+The repository supports problem framing, audience and stakeholder research,
+landscape and constraint analysis, opportunity reframing, and planning for later
+ideation and prototyping. It does not present generated solutions as validated.
 
-- Extend human review to revision, rejection, and resuming interrupted runs.
-- Continue across exercises using approved prior context.
-- Ingest human evidence and generate missing-evidence collection forms.
-- Compile final framing artifacts with checked provenance.
-- Evaluate the contribution of multiple perspectives against a single-agent baseline.
+## License
 
----
-
-# License
-
-Code, configuration, agent definitions, and software architecture files are
-licensed under the Apache License 2.0.
-
-Original documentation and exercise outline files authored for this repository
-are licensed under Creative Commons Attribution 4.0 International (CC BY 4.0).
-
-The exercise concepts and original source method materials that informed the
-Markdown outlines in `exercises/*.md` are authored by IDEO.org as part of
-Design Kit. This repository attributes that original authorship to IDEO.org.
-Imported Design Kit HTML and PDF files are intentionally excluded from
-publication through `.gitignore` and are not covered by this repository's
-licenses.
-
----
-
-# Contributing
-
-The project is currently experimental.
-
-Suggestions, critiques, and discussions around agentic architectures, design thinking, knowledge representation, and software engineering are welcome.
+Code and architecture files are licensed under Apache License 2.0. Original
+exercise concepts derived from IDEO.org Design Kit material retain their source
+attribution; repository-authored exercise outlines are CC BY 4.0.

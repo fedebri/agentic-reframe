@@ -1,0 +1,9 @@
+{% extends 'base.html' %}
+{% block title %}Restart project — Agentic Reframe{% endblock %}
+{% block content %}
+<h2>{% if blank %}Start a blank project{% else %}Revise the brief and restart{% endif %}</h2>
+<p>This creates a fresh project with no uploaded evidence, runs, or reviewed claims. Earlier files and review history remain available under <a href="{{ url_for('projects') }}">Saved projects</a>.</p>
+<p>Previous AI spending reservations still count toward your allowance.</p>
+{% include 'project_form.html' %}
+<p><a href="{{ url_for('project') }}">Cancel and return to your project</a></p>
+{% endblock %}

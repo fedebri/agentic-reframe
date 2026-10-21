@@ -1,0 +1,11 @@
+{% set draft = draft | default({}) %}
+<form method="post" action="{{ url_for('create_project') }}" enctype="multipart/form-data">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  {% if restart_from %}<input type="hidden" name="restart_from" value="{{ restart_from }}">{% endif %}
+  <p><label>Project name<br><input name="name" required maxlength="120" size="35" value="{{ draft.get('name', '') }}"></label></p>
+  <p><label>Your name or participant ID<br><input name="author" required maxlength="120" size="35" value="{{ draft.get('author', '') }}"></label></p>
+  <p><label>Challenge brief<br><textarea name="brief_text" rows="8" cols="40">{{ draft.get('brief_text', '') }}</textarea></label></p>
+  <p><label>Or upload a brief (.md or .txt)<br><input type="file" name="brief" accept=".md,.txt,text/plain,text/markdown"></label></p>
+  <p>If you upload a file, it supplies the brief. Use material you have permission to share with the host and the AI service.</p>
+  <button type="submit">{% if restart_from %}Create fresh project{% else %}Create project{% endif %}</button>
+</form>

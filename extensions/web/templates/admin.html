@@ -1,0 +1,16 @@
+{% extends 'base.html' %}
+{% block title %}Administration — Agentic Reframe{% endblock %}
+{% block content %}
+<h2>Administration</h2>
+<p>Projects remain independent. This administrator view is available only to the verified emails configured by the host.</p>
+<p>Deployment cap: ${{ total_cap }}. Estimated charges: ${{ '%.6f' | format(projects | sum(attribute='charged') / 1000000) }}. Pending allocations: ${{ '%.6f' | format(projects | sum(attribute='pending') / 1000000) }}.</p>
+<table>
+<caption>Projects</caption><thead><tr><th>Project</th><th>Owner</th><th>Researcher</th><th>Last activity (UTC)</th><th>Estimated USD</th></tr></thead>
+<tbody>{% for item in projects %}<tr><td><a href="{{ url_for('admin_project', workspace_id=item.id) }}">{{ item.name }}</a></td><td>{{ item.email or 'Local browser preview' }}</td><td>{{ item.author }}</td><td>{{ item.updated_at }}</td><td>{{ '%.6f' | format((item.charged + item.pending) / 1000000) }}</td></tr>{% else %}<tr><td colspan="5">No projects yet.</td></tr>{% endfor %}</tbody>
+</table>
+<h3>Recent analysis jobs</h3>
+<ul>{% for job in jobs %}<li>{{ job.name }} / {{ job.run_id[:8] }} — {{ job.state }}{% if job.error %}: {{ job.error }}{% endif %}</li>{% else %}<li>No jobs queued yet.</li>{% endfor %}</ul>
+<h3>Shared briefs</h3>
+<p>To make an independent exercise available to the cohort, open a project above and publish only its brief.</p>
+<ul>{% for template in templates %}<li>{{ template.name }}</li>{% else %}<li>No shared briefs yet.</li>{% endfor %}</ul>
+{% endblock %}

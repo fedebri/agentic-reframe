@@ -1,0 +1,12 @@
+{% extends 'base.html' %}
+{% block title %}Action needs attention — Agentic Reframe{% endblock %}
+{% block content %}
+<h2>The action could not be completed</h2>
+<p role="alert">{{ message }}</p>
+<p>Use your browser's Back button to return to the form, or <a href="{{ url_for('home') }}">return home</a>.</p>
+{% if request.method == 'POST' and request.content_length and request.content_length <= config.MAX_CONTENT_LENGTH %}
+<details><summary>Text you submitted</summary>
+<dl>{% for name, value in request.form.items(multi=True) %}{% if name not in ['csrf', 'password'] %}<dt>{{ name }}</dt><dd><pre>{{ value }}</pre></dd>{% endif %}{% endfor %}</dl>
+</details>
+{% endif %}
+{% endblock %}

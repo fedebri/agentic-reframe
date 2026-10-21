@@ -1,0 +1,11 @@
+{% extends 'base.html' %}
+{% block title %}Tester access — Agentic Reframe{% endblock %}
+{% block content %}
+<h2>Tester access</h2>
+{% if incorrect %}<p role="alert">The password was incorrect.</p>{% endif %}
+<form method="post">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <p><label>Tester password<br><input type="password" name="password" required autocomplete="current-password"></label></p>
+  <button type="submit">Continue</button>
+</form>
+{% endblock %}

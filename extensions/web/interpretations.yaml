@@ -1,0 +1,222 @@
+# Web-only prompts derived from the matching canonical exercise Markdown files.
+# The five keys retain the core HumanFrame format; answers remain private to humans.
+frame_challenge:
+  framing:
+    label: What challenge question would you investigate, and who is affected?
+    hint: Name the audience and desired outcome without prescribing a solution. You may use a How Might We question.
+  observations:
+    label: Which details in the brief define the audience, context, and constraints?
+    hint: One observation per line, with a source reference where available. Include geography, timing, access, and institutional limits.
+  assumptions:
+    label: Where might your challenge be too broad, too narrow, or already imply a solution?
+    hint: One assumption or scope risk per line. Distinguish what the brief says from what you are adding.
+  alternative_frame:
+    label: What alternative challenge question did you consider, and why prefer this one?
+    hint: Compare audience clarity, scope, and room for multiple approaches. Do not select a final solution.
+  open_questions:
+    label: What must you learn to choose or revise the challenge frame?
+    hint: One question per line. Focus on missing audience, outcome, or constraint evidence that could change the frame.
+
+align_impact_goals:
+  framing:
+    label: What near-term outcome and longer-term impact should this project contribute to?
+    hint: Distinguish an activity or output, an observable change in behavior or conditions, and lasting social change.
+  observations:
+    label: Whose goals appear in the sources, and what would count as progress for them?
+    hint: One stakeholder goal or discovery-stage success signal per line. Name the source and whose definition of success it represents.
+  assumptions:
+    label: Which links between activities, outcomes, and impact are you assuming?
+    hint: One assumption, measurement risk, or stakeholder trade-off per line. Avoid treating a proposed metric as validated impact.
+  alternative_frame:
+    label: What competing goal or definition of success could another stakeholder prioritize?
+    hint: Explain the conflict and how that priority would change the project's near-term outcome.
+  open_questions:
+    label: Whose goals are missing, and what evidence would clarify success or its trade-offs?
+    hint: One question per line. Identify whom to consult or which observable signal to check before agreeing on goals.
+
+align_participatory_approach:
+  framing:
+    label: Who should participate, when, and with what decision-making role?
+    hint: Describe consultation, participatory design, co-design, or community-led work, including time commitments and what happens afterward.
+  observations:
+    label: What do the sources show about affected groups, existing involvement, and access barriers?
+    hint: One observation per line. Distinguish directly affected people, proxies, providers, partners, and funders, citing the relevant notes.
+  assumptions:
+    label: What are you assuming about representation, consent, availability, or power to participate?
+    hint: One assumption or engagement risk per line. Do not equate attendance or consultation with shared decision-making authority.
+  alternative_frame:
+    label: How would another participation approach change who has influence and what is asked of them?
+    hint: Compare a concrete alternative mode or role allocation, including benefits, burdens, and decision rights.
+  open_questions:
+    label: What must you ask participants before making a participation commitment?
+    hint: One question per line about access, consent, compensation, responsibilities, missing perspectives, or follow-up commitments.
+
+secondary_research:
+  framing:
+    label: How does the available research change your understanding of the challenge landscape?
+    hint: Summarize contextual conditions, structural constraints, and prior attempts relevant to the challenge.
+  observations:
+    label: Which facts, figures, constraints, and prior attempts can you attribute to specific sources?
+    hint: One finding per line with its document reference and date where available. State what worked or failed without extending beyond the source.
+  assumptions:
+    label: Which research claims are uncertain, outdated, or being extended beyond their original context?
+    hint: One limitation or inference per line. Consider source quality, conflicting accounts, and applicability to this audience.
+  alternative_frame:
+    label: What competing account or prior attempt challenges your reading of the landscape?
+    hint: Explain how an alternative interpretation of the sources would change the constraints or challenge frame.
+  open_questions:
+    label: Which research gaps or constraints need external or human verification next?
+    hint: One question per line. Name the source, person, or evidence needed, especially where a hard constraint could block later work.
+
+power_mapping:
+  framing:
+    label: Who can enable, block, benefit from, or be harmed by change, and how is power distributed?
+    hint: Map stakeholder roles and relationships, including people with high vulnerability or dependence but little influence.
+  observations:
+    label: Which stakeholders hold which power assets or decision rights in the supplied evidence?
+    hint: One relationship per line, citing its source. Consider authority, money, knowledge, connections, permission, access, and narrative influence.
+  assumptions:
+    label: Which judgments about influence, dependency, vulnerability, or representation are still assumptions?
+    hint: One assumption or power asymmetry per line. Keep conflicting interests visible rather than assuming consensus.
+  alternative_frame:
+    label: How would this power map look from a less influential stakeholder's perspective?
+    hint: Explain which relationships or risks change, and where decision rights or resources might need to be shared.
+  open_questions:
+    label: Whom must you consult to verify decision rights, exclusions, or unresolved power tensions?
+    hint: One question per line. Identify the stakeholder and the specific authority, dependency, or governance relationship to check.
+
+resource_flow:
+  framing:
+    label: Which resource flows and dependencies appear most important for the stakeholders?
+    hint: Start with money, then consider time, labor, care, infrastructure, data, attention, and trust, including scarcity and timing mismatches.
+  observations:
+    label: Which incoming and outgoing transfers are documented, between whom, and how often?
+    hint: One flow per line with source, sender, recipient, resource type, direction, frequency, and perceived value where known.
+  assumptions:
+    label: Which flows, bottlenecks, values, or timing patterns are inferred rather than participant-confirmed?
+    hint: One assumption per line. Include missing informal transfers and obligations, and do not invent quantities or frequency.
+  alternative_frame:
+    label: What alternative flow pattern or explanation could account for the apparent scarcity or bottleneck?
+    hint: Consider another stakeholder's account, a non-cash resource, or the timing of inflows relative to recurring needs.
+  open_questions:
+    label: What should a participant map or confirm to resolve the missing resource-flow details?
+    hint: One question per line about who transfers what, to whom, how often, and why it matters. If no map exists, identify what a capture template must collect.
+
+extremes_and_mainstreams:
+  framing:
+    label: Which mainstream and extreme users or contexts should this inquiry distinguish?
+    hint: Define meaningful audience spectrums, such as access, expertise, geography, risk exposure, or intensity of need, rather than assuming an average user.
+  observations:
+    label: What documented experiences show typical cases, edge cases, or different needs along those spectrums?
+    hint: One case per line, with a source reference and the need, constraint, coping behavior, or failure mode it reveals.
+  assumptions:
+    label: Which segment definitions or claims about typicality are still recruiting hypotheses?
+    hint: One assumption per line. Distinguish observed differences from stereotypes, untested categories, and unsupported claims of representativeness.
+  alternative_frame:
+    label: What other audience spectrum or overlooked edge case could change your segmentation?
+    hint: Explain what this alternative reveals that your current mainstream and extreme categories would miss.
+  open_questions:
+    label: Who should you recruit next, what should you learn, and how can participation be welcoming?
+    hint: One recruiting or investigation question per line. Include both mainstream and edge perspectives and relevant access needs.
+
+analogous_inspiration:
+  framing:
+    label: What behavior, interaction, emotion, or constraint do you want to understand through analogy?
+    hint: Name the underlying mechanism in the current challenge and the different setting you would examine for a useful comparison.
+  observations:
+    label: Which observed or documented patterns in analogous settings connect to that mechanism?
+    hint: One pattern per line, naming the setting, source, and connection. If it has not been observed, mark it as a proposed research setting.
+  assumptions:
+    label: Why might each analogy fail or overreach in this challenge's context?
+    hint: One transfer assumption or limit per line, considering audience, constraints, incentives, resources, and power differences.
+  alternative_frame:
+    label: What contrasting analogy would lead you to a different interpretation of the same mechanism?
+    hint: Compare what each setting helps explain. Translate patterns into questions or principles, rather than copying a finished solution.
+  open_questions:
+    label: What should you observe or research to test the analogy and develop an opportunity question?
+    hint: One question per line with a learning goal. You may write a How Might We seed, keeping any transfer hypothesis tentative.
+
+photojournal:
+  framing:
+    label: What do the photo captions and field notes suggest about routines, tools, and lived context?
+    hint: If no photo evidence exists, describe the learning goal for a participant photojournal. This website accepts text notes and captions, not image uploads.
+  observations:
+    label: Which visible or captioned details can you record without interpreting intent or emotion?
+    hint: One detail per line with the photo filename and caption or note reference. Distinguish a participant's explanation from your own reading.
+  assumptions:
+    label: Which links to needs, pains, gains, or constraints are uncertain interpretations?
+    hint: One inference per line. Do not infer identity, intent, emotion, or causality from an image alone.
+  alternative_frame:
+    label: What other explanation could account for the same scene or routine?
+    hint: State how a participant's explanation or missing context might change your reading, without inventing what a photo shows.
+  open_questions:
+    label: What should participants photograph or explain next, including what they chose not to photograph?
+    hint: One collection prompt or follow-up question per line, tied to the learning goal and the participant's context.
+
+five_whys:
+  framing:
+    label: Which specific observation, behavior, or claim do you want to investigate, and why?
+    hint: Start from a sourced observation or accepted tension and keep the causal inquiry focused on that starting point.
+  observations:
+    label: What is your current chain of why questions and answers?
+    hint: One linked step per line. Mark each answer as evidence-backed, inferred, or assumed, and cite the source where available.
+  assumptions:
+    label: Which causal links lack evidence, become circular, or risk speculation?
+    hint: One uncertain link per line. State where you stopped and why; do not force five answers when the evidence runs out.
+  alternative_frame:
+    label: What competing cause could explain the same starting observation?
+    hint: Describe an alternative causal chain or mechanism that fits the available evidence, rather than broadening to an unrelated topic.
+  open_questions:
+    label: What evidence would distinguish the competing causes or justify the next why step?
+    hint: One investigation question per line, identifying the causal link to check and what would support stopping the chain.
+
+interviews:
+  framing:
+    label: What do these interviews suggest about the interviewees' needs, motivations, and constraints?
+    hint: Name the perspectives and whether the interviews are individual, expert, or group interviews. Keep conclusions scoped to these accounts.
+  observations:
+    label: Which direct statements, quotes, and contradictions stand out in the interview notes?
+    hint: One observation per line with an interviewee role and source reference. Separate what a person said from your interpretation of it.
+  assumptions:
+    label: Which conclusions go beyond what the interviewees directly said or who was interviewed?
+    hint: One interpretation or sampling limitation per line. Do not treat a few interviews as representative market findings or body language as proof.
+  alternative_frame:
+    label: What competing interpretation fits the mixed or conflicting interview accounts?
+    hint: Explain how different roles or contexts might account for the disagreement without forcing the accounts into one shared view.
+  open_questions:
+    label: Whom should you interview next, which interview type fits, and what would you ask?
+    hint: One question per line. Target a missing perspective or specific uncertainty; if interviews are absent, outline the questions a template should cover.
+
+project_plan:
+  framing:
+    label: What discovery work remains, in what sequence, and what must be learned before handoff?
+    hint: Connect planned research activities to evidence gaps, stakeholder needs, constraints, or accepted tensions. Later ideation and prototyping remain outside this inquiry.
+  observations:
+    label: Which dates, staffing, budget, access, and fieldwork constraints are already known?
+    hint: One constraint or commitment per line with its source. Include partner availability, capability gaps, logistics, and dependencies.
+  assumptions:
+    label: Which schedule, cost, staffing, permission, or access assumptions could block the plan?
+    hint: One assumption or operational risk per line. Distinguish confirmed commitments from estimates and proposed task ownership.
+  alternative_frame:
+    label: How would you resequence or reduce the discovery plan if a critical dependency failed?
+    hint: Describe a feasible alternative research path under the stated time, people, access, and budget constraints.
+  open_questions:
+    label: Which research tasks, owners, and review checkpoints should resolve the remaining uncertainties?
+    hint: One task or confirmation question per line, linking it to an evidence gap and identifying what must be checked before proceeding.
+
+value_proposition_canvas:
+  framing:
+    label: For one stakeholder segment, what jobs, pains, and gains matter most?
+    hint: Name the segment and distinguish functional, social, emotional, or operational jobs. Keep different roles in separate maps.
+  observations:
+    label: Which jobs, pains, and gains are supported by specific accounts or reviewed claims?
+    hint: One persona element per line with a source or claim reference. Include obstacles, costs, risks, desired outcomes, and motivations.
+  assumptions:
+    label: Which persona elements or links between jobs, pains, and gains are still inferred?
+    hint: One assumption per line. Note divergent needs across roles and do not rely on invalidated or contradicted claims as established support.
+  alternative_frame:
+    label: How would this map change for another stakeholder role or a competing interpretation of the same needs?
+    hint: Compare the different jobs, pains, and gains without merging them into a generic persona or defining a final solution.
+  open_questions:
+    label: What should you validate with this stakeholder before carrying a value hypothesis into later ideation?
+    hint: One question per line, linking the hypothesis to a specific job, pain, gain, or unresolved conflict and the evidence needed to test it.

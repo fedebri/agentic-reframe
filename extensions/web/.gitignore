@@ -1,0 +1,4 @@
+.data/
+.venv/
+deployment.env
+!schema.sql

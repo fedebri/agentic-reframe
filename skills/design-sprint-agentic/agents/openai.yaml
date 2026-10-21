@@ -1,4 +1,4 @@
 interface:
-  display_name: "Agentic Design Sprint"
-  short_description: "Run provenance-first design sprint analysis"
-  default_prompt: "Use $design-sprint-agentic to turn a brief and exercise folder into validated design-sprint framing artifacts."
+  display_name: "Agentic Design Sprint v2"
+  short_description: "Develop human-led inquiry with attributable evidence"
+  default_prompt: "Use $design-sprint-agentic to record an independent human frame, compare an evidence-grounded AI interpretation, and support justified human revision with append-only provenance and separate reasoning assessment."

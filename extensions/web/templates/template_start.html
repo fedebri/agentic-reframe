@@ -1,0 +1,13 @@
+{% extends 'base.html' %}
+{% block title %}Start an independent project — Agentic Reframe{% endblock %}
+{% block content %}
+<h2>{{ template.name }}</h2>
+<p>This creates your own project from the brief. Your evidence, interpretations, runs, and reviews remain separate from other testers.</p>
+<details><summary>Read the shared brief</summary><pre>{{ template.brief }}</pre></details>
+<form method="post">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <p><label>Project name<br><input name="name" value="{{ template.name }}" maxlength="120" required></label></p>
+  <p><label>Your name or participant ID<br><input name="author" maxlength="120" required></label></p>
+  <button type="submit">Create my independent project</button>
+</form>
+{% endblock %}

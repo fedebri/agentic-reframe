@@ -1,4 +1,4 @@
-"""One OpenAI Responses integration with explicit budget reservation and retries."""
+"""One structured Responses API boundary with explicit budget and retry control."""
 
 import time
 from collections.abc import Callable
@@ -6,28 +6,22 @@ from decimal import Decimal
 from typing import TypeVar
 
 from openai import APIConnectionError, APIStatusError, OpenAI
+from pydantic import BaseModel
 
-from .config import ModelSettings
-from .schemas import AgentResponse
+from .config import ModelConfig
 
-ResponseT = TypeVar("ResponseT", bound=AgentResponse)
+ResponseT = TypeVar("ResponseT", bound=BaseModel)
 
 
-def generate_response(
+def generate_structured(
     client: OpenAI,
     request: dict,
-    settings: ModelSettings,
+    settings: ModelConfig,
     budget_usd: Decimal,
     record: Callable[..., None],
-    *,
     response_model: type[ResponseT],
 ) -> ResponseT:
-    """Count the exact request, reserve retry costs, then validate a response.
-
-    SDK retries must be disabled on the supplied client. Unknown failed-attempt
-    usage consumes a full reservation. Rates are configured estimates, not a
-    provider-side billing cap. Invalid content/refusals are not retried.
-    """
+    """Reserve the worst-case call cost, retry transient failures, and validate."""
     count = client.responses.input_tokens.count(**request)
     input_tokens = count.input_tokens
     if input_tokens > settings.max_input_tokens:
@@ -38,18 +32,19 @@ def generate_response(
         input_tokens * settings.input_usd_per_million
         + settings.max_output_tokens * settings.output_usd_per_million
     ) / Decimal(1_000_000)
-    total_reservation = per_attempt * (settings.max_retries + 1)
+    reservation = per_attempt * (settings.max_retries + 1)
     record(
         "budget_checked",
         input_tokens=input_tokens,
-        reserved_usd=str(total_reservation),
-        budget_usd=str(budget_usd),
+        reserved_usd=str(reservation),
+        approved_budget_usd=str(budget_usd),
+        reservation_accepted=reservation <= budget_usd,
     )
-    if total_reservation > budget_usd:
+    if reservation > budget_usd:
         raise ValueError(
-            f"Maximum estimated cost including retries is ${total_reservation}; "
-            f"budget is ${budget_usd}. No generation request sent."
+            f"Maximum estimated cost is ${reservation}; budget is ${budget_usd}"
         )
+
     for attempt in range(1, settings.max_retries + 2):
         record("attempt_started", attempt=attempt, reserved_usd=str(per_attempt))
         started = time.monotonic()
@@ -58,7 +53,6 @@ def generate_response(
                 **request,
                 max_output_tokens=settings.max_output_tokens,
                 store=False,
-                service_tier="default",
             )
         except (APIConnectionError, APIStatusError) as error:
             status = getattr(error, "status_code", None)
@@ -73,28 +67,14 @@ def generate_response(
                 status_code=status,
                 request_id=getattr(error, "request_id", None),
                 elapsed_seconds=time.monotonic() - started,
-                usage=None,
-                reserved_usd=str(per_attempt),
-                warning="Usage unknown; retain full attempt reservation.",
+                warning="Usage is unknown; the attempt reservation remains charged.",
             )
             if not retry:
                 raise
-            # A single short bounded retry; avoid SDK retries multiplying attempts.
             time.sleep(1)
             continue
 
         usage = response.usage.model_dump() if response.usage is not None else None
-        estimated_cost = None
-        if response.usage is not None:
-            estimated_cost = str(
-                (
-                    response.usage.input_tokens * settings.input_usd_per_million
-                    + response.usage.output_tokens * settings.output_usd_per_million
-                )
-                / Decimal(1_000_000)
-            )
-        # Save usage/status before parsing, including incomplete or malformed output.
-        # Do not persist the full API response: it can contain reasoning items.
         record(
             "response_received",
             attempt=attempt,
@@ -103,25 +83,16 @@ def generate_response(
             model=response.model,
             response_status=response.status,
             usage=usage,
-            estimated_cost_usd=estimated_cost,
             elapsed_seconds=time.monotonic() - started,
         )
         if response.status != "completed":
-            raise ValueError(
-                f"Response {response.id} is {response.status}; not accepted"
-            )
+            raise ValueError(f"Response {response.id} is {response.status}")
         if any(
             part.type == "refusal"
             for item in response.output
             if item.type == "message"
             for part in item.content
         ):
-            raise ValueError(f"Response {response.id} was refused; not accepted")
-        result = response_model.model_validate_json(response.output_text)
-        for claim in result.takeaways:
-            if set(claim.evidence_refs) != {"brief"}:
-                raise ValueError(
-                    f"Claim {claim.takeaway_id}: only brief is assigned evidence"
-                )
-        return result
-    raise AssertionError("Unreachable: bounded attempts must return or raise")
+            raise ValueError(f"Response {response.id} was refused")
+        return response_model.model_validate_json(response.output_text)
+    raise AssertionError("Bounded attempts must return or raise")

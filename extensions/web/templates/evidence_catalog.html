@@ -1,0 +1,13 @@
+{% if citations %}
+<h3>Cited evidence</h3>
+<p>Each distinct passage appears once below as a short excerpt. Expand its full source on the saved run page to read the complete context.</p>
+{% for citation in citations %}
+<section id="passage-{{ loop.index }}">
+  <h4>[{{ loop.index }}] {{ citation.source_id }}, lines {{ citation.start_line }}–{{ citation.end_line }}</h4>
+  <blockquote>{{ citation.quote[:280] }}{% if citation.quote|length > 280 %}…{% endif %}</blockquote>
+  {% for source in manifest.sources %}{% if source.source_id == citation.source_id %}
+  <p><a href="{{ url_for('run', run_id=run_id) }}#source-{{ loop.index }}">Read full source</a></p>
+  {% endif %}{% endfor %}
+</section>
+{% endfor %}
+{% endif %}

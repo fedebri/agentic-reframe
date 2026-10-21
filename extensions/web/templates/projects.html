@@ -1,0 +1,22 @@
+{% extends 'base.html' %}
+{% block title %}Saved projects — Agentic Reframe{% endblock %}
+{% block content %}
+<h2>Saved projects</h2>
+<p>{% if signed_in %}These projects belong to your sign-in and can be reopened on another machine.{% else %}These local preview projects belong to this browser.{% endif %} Opening one restores its brief, evidence, saved drafts, runs, and review history.</p>
+<ul>
+{% for item in projects %}
+<li>
+  {{ item.name }} ({{ item.id[:8] }})
+  <small>Last activity: {{ item.updated_at }}.</small>
+  {% if item.id == session.workspace_id %} — current project
+  {% else %}
+  <form method="post">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <input type="hidden" name="workspace_id" value="{{ item.id }}">
+    <button type="submit">Open project</button>
+  </form>
+  {% endif %}
+</li>
+{% endfor %}
+</ul>
+{% endblock %}

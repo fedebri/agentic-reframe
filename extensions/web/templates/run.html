@@ -1,0 +1,72 @@
+{% extends 'base.html' %}
+{% block title %}Saved exercise — Agentic Reframe{% endblock %}
+{% block content %}
+<h2>{{ manifest.exercise_id.replace('_', ' ').capitalize() }}</h2>
+<p>Run {{ run_id[:8] }}. Status: <strong>{{ status.state }}</strong>.</p>
+{% if job and job.error %}<p role="alert">{{ job.error }}</p>{% endif %}
+<details><summary>Exercise instructions</summary><pre>{{ manifest.exercise_source.content }}</pre></details>
+<h3>Your saved interpretation</h3>
+<p>{{ frame.framing }}</p>
+<details><summary>Observations, assumptions, alternative, and questions</summary>
+  <h4>Observations</h4><ul>{% for item in frame.observations %}<li>{{ item }}</li>{% endfor %}</ul>
+  <h4>Assumptions</h4><ul>{% for item in frame.assumptions %}<li>{{ item }}</li>{% endfor %}</ul>
+  <p>Alternative: {{ frame.alternative_frame }}</p>
+  <h4>Questions</h4><ul>{% for item in frame.open_questions %}<li>{{ item }}</li>{% endfor %}</ul>
+</details>
+<h3>Selected sources</h3>
+{% for source in manifest.sources %}
+<details id="source-{{ loop.index }}"><summary>{{ source.source_id }}</summary><pre>{{ source.content }}</pre></details>
+{% endfor %}
+<p>Your independent interpretation is withheld from the AI.</p>
+{% if completed %}
+<h3>Compare interpretations</h3>
+{% for claim in analysis.claims %}
+<section>
+  <h4>{{ loop.index }}. {{ claim.statement }}</h4>
+  <p>{{ claim.public_reasoning_summary }}</p>
+  <p>Claim {{ claim.local_id }}; {{ claim.deliverable.replace('_', ' ') }}; {{ claim.claim_type }}; proposed confidence: {{ claim.confidence }}.</p>
+  <p>Evidence:
+  {% for citation in claim.citations %}<a href="#passage-{{ citations.index(citation) + 1 }}">[{{ citations.index(citation) + 1 }}]</a>{% else %}No exact passage citation.{% endfor %}
+  </p>
+  {% if claim.open_questions %}<ul>{% for question in claim.open_questions %}<li>{{ question }}</li>{% endfor %}</ul>{% endif %}
+</section>
+{% endfor %}
+{% if critique %}
+<h3>Critic findings</h3>
+<p>{{ critique.recommendation.replace('_', ' ') }}</p>
+<ul>{% for issue in critique.issues %}<li>{{ issue.severity }}{% if issue.claim_id %}, {{ issue.claim_id }}{% endif %}: {{ issue.message }}</li>{% endfor %}</ul>
+<h3>Suggested next step</h3>
+<p>Action: {{ critique.next_action.replace('_', ' ') }}.</p>
+<p>{{ critique.next_question or 'Review the proposed claims against the evidence.' }}</p>
+{% endif %}
+{% include 'evidence_catalog.html' %}
+<p><a href="{{ url_for('review', run_id=run_id) }}">{% if reviewed %}View saved review{% else %}Review claims and record your reflection{% endif %}</a></p>
+{% else %}
+<h3>Run the analysis</h3>
+{% if job and job.state in ['queued', 'running'] %}
+<p>Your analysis is {{ job.state }}. You can leave this page and return from My projects. This page refreshes every five seconds.</p>
+{% if job.state == 'queued' %}<p>Queued work waits for the host's background worker. If the status does not change, ask the host to check that service.</p>{% endif %}
+<p><a href="{{ url_for('run', run_id=run_id) }}">Refresh status now</a></p>
+{% elif live_enabled and budget > reserved %}
+<p>The maximum reserved estimate for this run is ${{ budget }} including earlier attempts. So far ${{ reserved }} has been charged in local estimates. All your projects and restarts count toward your tester allowance, and the deployment has a shared cap. These are local estimates, not provider-enforced billing limits.</p>
+<form method="post">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <input type="hidden" name="project_id" value="{{ project_id }}">
+  {% if status.state in ['failed', 'running'] or (job and job.state in ['failed', 'interrupted']) %}
+  <input type="hidden" name="retry_failed" value="yes">
+  <p><label><input type="checkbox" name="authorize" value="yes" required> Authorize resuming this run within the displayed estimate, including retrying an interrupted or failed call. Earlier reservations still count.</label></p>
+  {% else %}
+  <p><label><input type="checkbox" name="authorize" value="yes" required> Authorize an AI run within the displayed estimate.</label></p>
+  {% endif %}
+  <button type="submit">Run AI analysis</button>
+</form>
+<p>This queues an analysis for the background worker. A saved response can be resumed without another call.</p>
+{% elif live_enabled %}
+<p>The run, tester, or deployment allowance is exhausted or allocated to pending work. Earlier projects and restarts retain their charges.</p>
+{% else %}
+<p>Live AI calls are disabled on this host. Your files, interpretation, and request preview are saved. Use the worked example to explore completed results.</p>
+{% endif %}
+{% endif %}
+<details><summary>Inspect the exact AI request</summary><pre>{{ request_text }}</pre></details>
+<p><a href="{{ url_for('project') }}">Return to your project</a></p>
+{% endblock %}

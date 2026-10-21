@@ -1,0 +1,20 @@
+{% extends 'base.html' %}
+{% block title %}Project administration — Agentic Reframe{% endblock %}
+{% block content %}
+<h2>{{ record.name }}</h2>
+<p>Owner: {{ record.email or 'Local browser preview' }}. Researcher: {{ record.author }}. Last activity: {{ record.updated_at }}.</p>
+<details><summary>Challenge brief</summary><pre>{{ brief }}</pre></details>
+<h3>Evidence files</h3>
+<ul>{% for item in project.uploads %}<li>{{ item.name }}</li>{% else %}<li>No evidence uploaded.</li>{% endfor %}</ul>
+<h3>Saved drafts</h3>
+<ul>{% for item in drafts %}<li>{{ item.exercise_id.replace('_', ' ') }} — {{ item.updated_at }}</li>{% else %}<li>No drafts saved.</li>{% endfor %}</ul>
+<h3>Runs</h3>
+<ul>{% for item in runs %}<li>{{ item.exercise.replace('_', ' ') }} / {{ item.id[:8] }} — {{ item.state }}</li>{% else %}<li>No runs prepared.</li>{% endfor %}</ul>
+<form method="post" action="{{ url_for('admin_export', workspace_id=record.id) }}">
+  <input type="hidden" name="csrf" value="{{ csrf }}"><button type="submit" {% if not has_reviews %}disabled{% endif %}>Export reviewed research and history</button>
+</form>
+<h3>Share this brief with the cohort</h3>
+<p>Publishing makes the brief text available to every invited tester. Evidence files, answers, and reviews are not shared. Each tester creates an independent copy.</p>
+<form method="post"><input type="hidden" name="csrf" value="{{ csrf }}"><p><label><input type="checkbox" name="publish_brief" value="yes" required> Make this brief available to all invited testers.</label></p><button type="submit">Publish brief template</button></form>
+<p><a href="{{ url_for('admin') }}">Return to administration</a></p>
+{% endblock %}

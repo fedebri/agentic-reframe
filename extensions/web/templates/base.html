@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Agentic Reframe{% endblock %}</title>
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="stylesheet" href="{{ url_for('static', filename='readability.css') }}">
+</head>
+<body>
+  <header>
+    <div class="wordmark-row"><h1><a href="{{ url_for('home') }}">Agentic Reframe</a></h1><span class="status-dot" aria-hidden="true"></span></div>
+    <nav aria-label="Main navigation">
+      <a href="{{ url_for('home') }}">Home</a>
+      {% if session.get('workspace_id') %} | <a href="{{ url_for('project') }}">Your project</a>{% endif %}
+      | <a href="{{ url_for('projects') }}">My projects</a>
+      {% if is_admin %} | <a href="{{ url_for('admin') }}">Administration</a>{% endif %}
+      {% if session.get('example_id') %} | <a href="{{ url_for('example') }}">Worked example</a>{% endif %}
+    </nav>
+    {% if signed_in and identity_email %}<div class="account">{{ identity_email }} <form class="inline" method="post" action="{{ url_for('logout') }}"><input type="hidden" name="csrf" value="{{ csrf }}"><button type="submit">Sign out</button></form></div>{% endif %}
+    <hr>
+  </header>
+  <main>{% block content %}{% endblock %}</main>
+  <footer>Derver / Independent research</footer>
+</body>
+</html>

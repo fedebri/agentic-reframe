@@ -1,114 +1,80 @@
-# Artifact Contracts
+# Version 2 artifact contracts
 
-## Takeaway
+## Run manifest
 
-Required fields:
+Every run freezes:
 
-- `takeaway_id`: stable claim identifier.
-- `exercise_id`: configured exercise ID.
-- `agent_id`: originating agent.
-- `claim`: concise statement.
-- `claim_type`: one of `observation`, `inference`, `assumption`, `hypothesis`.
-- `evidence_refs`: source IDs or paths.
-- `confidence`: float from 0 to 1.
-- `validation_status`: one of `proposed`, `supported`, `contested`,
-  `deprecated`, `accepted_tension`.
-- `public_reasoning_summary`: concise rationale using cited evidence.
-- `open_questions`: list of questions that would improve confidence.
+- run and exercise identity;
+- required deliverables;
+- exact brief and explicitly selected evidence snapshots with SHA-256 hashes;
+- reviewed prior context;
+- independent human framing snapshot (required for new framing runs, withheld
+  from both model requests and never used as factual evidence);
+- analyst and optional critic prompts;
+- model, explicit reasoning effort when assigned, token, retry, timeout, and
+  estimated-price settings;
+- the one ledger path the human review may later update.
 
-## Graph Event
+Resumes use the saved manifest. Any changed manifest or checkpointed response
+fails before another model call.
+Legacy manifests without reasoning effort omit it from requests; updating the
+project's model default never rewrites an existing run or changes its request.
+New manifests select `citation_format: passage_ids`. Manifests without that
+field retain the historical `line_spans` contract; use a fresh run to adopt IDs.
 
-Required fields:
+## Model outputs
 
-- `event_id`
-- `run_id`
-- `timestamp`
-- `event_type`: `claim_added`, `edge_added`, `status_changed`,
-  `evidence_added`, `conflict_classified`
-- `subject_id`
-- `payload`
-- `source_agent_id`
-- `exercise_id`
+The analyst returns typed claim drafts with a local ID, claim type, deliverable,
+assigned evidence references, source-local passage IDs, reviewed premises,
+confidence, public rationale, and open questions. Python indexes every frozen
+source into blank-line-separated blocks without changing the original Markdown.
+Model inputs contain each block's text once, with its ID, in source order.
+Python resolves references to exact quotations and one-based line spans before
+canonical response validation, review, or ledger entry. Unknown references fail
+closed. The typed model draft is saved separately as `analyst_draft.json` for
+inspection, including on reference failure; it is not a validated checkpoint.
+Canonical checkpoints and ledger events retain their exact-citation shape, as
+do legacy model outputs. Entailment is not automated.
 
-Graph events are append-only. Current state is derived by replaying events.
+The critic returns issues and a recommendation. It cannot return claims or graph
+events. Its bounded next action is review or request evidence; the latter needs
+one discriminating question and hands control to the human.
 
-## Edge Types
+## Human review
 
-- `supports`
-- `contradicts`
-- `refines`
-- `generalizes`
-- `depends_on`
-- `invalidates`
-- `supersedes`
+A worksheet is bound to exact manifest, analyst, critic, and base-ledger bytes.
+Every claim requires accept/reject. Acceptance is distinct from evidence status.
+Evidence judgments retain exact passages and public rationale, including a
+reaffirmed status. Framing reviews require a researcher reflection: revised or
+defended frame, disagreement, reconsidered assumptions, next question, revision
+trigger, and evidence considered. Human-authored revisions have explicit human
+confidence and preserve required dependencies.
 
-## Log Event
+Applying a review is the only proposal-to-ledger path. A saved event-intent batch
+precedes appending. Identical retries recover complete-line prefixes and missing
+receipts; changed retries fail. Later decisions need a fresh correction review,
+optionally with explicitly assigned new evidence. No automatic truncation.
 
-Required fields:
+## Ledger
 
-- `run_id`
-- `timestamp`
-- `stage_id`
-- `exercise_id`
-- `agent_id`
-- `event_type`
-- `input_manifest`
-- `output_manifest`
-- `graph_event_ids`
-- `public_reasoning_summary`
-- `warnings`
-- `validation_status`
+Supported events are evidence addition, claim addition, dependency edge
+addition, review decision, evidence-status judgment, run completion, review
+commit, independent human snapshot, and researcher reflection. Current state is
+derived by replay. Unusable premises block dependent claims. The store is local
+and single-writer; incomplete records and invalid references fail closed.
 
-Do not log hidden chain-of-thought, credentials, or unassigned private files.
+## Reports
 
-## Final Artifact Rule
+Final narrative sections contain only human-accepted claims with `supported` or
+`accepted_tension` evidence status. The synthesis index preserves every claim,
+review, status, edge, source, independent frame, and reflection, including
+excluded material. Narrative findings require usable, supported dependencies;
+human framing decisions appear separately and are not factual findings.
 
-Every final artifact statement must cite at least one active graph claim or an
-accepted tension. Statements derived from deprecated claims must be blocked
-unless a later graph event supplies stronger evidence and explicitly supersedes
-the deprecation.
+## Evaluation
 
-## Provenance implementation decisions
-
-- `agentic_dt/schemas.py` implements evidence, claims, response envelopes, edges,
-  status changes, review decisions, and completion-log records. Conflict
-  classification events remain for the synthesis package.
-- Evidence IDs resolve to retained UTF-8 source snapshots, SHA-256 hashes, and
-  one-based inclusive excerpt line ranges. Every claim cites at least one source,
-  which may be a brief supporting an explicitly labeled assumption.
-- New claims start as `proposed`. Status changes are separate events. Deprecation
-  requires an `invalidates` or `supersedes` edge from a supported claim. Deprecated
-  claims cannot be revived in place in this version; create a new claim if needed.
-- `review_recorded` extends the event types with a reviewer ID, public rationale,
-  and `pending`, `accepted`, or `rejected` decision. This is separate from claim
-  status and does not authenticate the reviewer.
-- Current report eligibility requires `supported` or `accepted_tension` status
-  and accepted review. Invalidation targets, and conclusions depending on them
-  through `depends_on` or `supports`, are blocked. Tensions require a contradiction
-  edge and must retain both sides in any future report.
-- Eligibility does not establish truth. Preserve claim type, qualifications, and
-  source context. Confidence is not a calibrated probability.
-- Each demonstration has a separate run-scoped graph file; IDs are unique within
-  that run. The durable identity is `(run_id, subject_id)`. A file rejects events
-  from another run. Multi-run graph queries remain out of scope.
-
-## First-pass boundary
-
-- `FirstPassResponse` uses the shared agent/claim envelope with 1–12 takeaways.
-  The prompt requests 3–8. Model-facing fields are all required for strict JSON
-  schema output; every claim must have status `proposed`.
-- The only assigned evidence ID is `brief`. The agent's own profile and exercise 1
-  are method instructions, not factual sources. Source snapshots and hashes are
-  saved in the run's input manifest, alongside model settings and empty tool/prior
-  context assignments.
-- Variables, mechanisms, and framing candidates are expressed as claims in this
-  first experiment. Dedicated executive-summary and edge output fields from the
-  broader agent-profile contract remain for later packages.
-- Responses are validated for schema, assigned agent/exercise identity, unique
-  claim IDs, and known evidence references. This does not prove citation support
-  or evidence quality. Valid outputs await synthesis and review; no graph writes
-  or human approval events occur in the first-pass path.
-- `LogEvent.details` carries structured API IDs, attempt numbers, token usage,
-  cost estimates/reservations, elapsed times, and error types. Missing usage is
-  represented as null, never zero. Credentials and full API response objects are
-  not persisted in these logs.
+Source-reference validity and passage accuracy are mechanical checks, not
+grounding or learning scores. Optional human assessments record the comparison
+condition, evidence grounding, assumption critique, contextual explanation,
+investigation value, rationale, and later unassisted work. Fictional reflections
+demonstrate the mechanism only; no human-development efficacy is established.
