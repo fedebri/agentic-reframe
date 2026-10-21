@@ -4,7 +4,7 @@ base_dir = "dist"
 find_additional_modules = true
 compatibility_date = "2026-10-01"
 compatibility_flags = ["python_workers"]
-workers_dev = false
+workers_dev = true
 preview_urls = false
 
 [[rules]]
