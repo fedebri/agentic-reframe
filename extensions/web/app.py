@@ -32,7 +32,6 @@ from agentic_dt.graph import replay
 from agentic_dt.reports import compile_reports
 from agentic_dt.review import apply_review, export_review, load_completed_run
 from agentic_dt.schemas import HumanFrame, ReviewWorksheet, RunManifest
-from agentic_dt.tutorial import run_tutorial
 from agentic_dt.workflow import run_exercise, validate_project
 
 from .identity import AccessIdentity
@@ -206,7 +205,6 @@ def create_app(
             else:
                 session.pop("claim_local_user", None)
             session.pop("workspace_id", None)
-            session.pop("example_id", None)
             session["csrf"] = secrets.token_urlsafe(32)
         if previous_user in {None, g.user["id"]}:
             legacy = session.pop("workspace_ids", [])
@@ -304,6 +302,14 @@ def create_app(
 
     @app.context_processor
     def form_context():
+        project_choices = []
+        if hasattr(g, "user"):
+            with store.connection() as db:
+                project_choices = db.execute(
+                    "SELECT id, name FROM projects WHERE owner_id=? "
+                    "ORDER BY updated_at DESC, rowid DESC",
+                    (g.user["id"],),
+                ).fetchall()
         return {
             "csrf": session["csrf"],
             "live_available": (
@@ -320,6 +326,7 @@ def create_app(
             "is_admin": getattr(g, "is_admin", False),
             "identity_email": g.user["email"] if hasattr(g, "user") else None,
             "project_id": session.get("workspace_id"),
+            "project_choices": project_choices,
         }
 
     @app.errorhandler(ValueError)
@@ -1002,22 +1009,6 @@ def create_app(
                 as_attachment=True,
                 download_name=f"research-{workspace_id[:8]}.zip",
             )
-
-    @app.route("/example", methods=["GET", "POST"])
-    def example():
-        if request.method == "POST" and "example_id" not in session:
-            example_id = uuid4().hex
-            run_tutorial(source_config, data_root / "examples" / example_id)
-            session["example_id"] = example_id
-        if "example_id" not in session:
-            return redirect(url_for("home"))
-        directory = data_root / "examples" / session["example_id"]
-        return render_template(
-            "example.html",
-            first=(directory / "run/comparison.md").read_text(),
-            follow_up=(directory / "follow_up_run/comparison.md").read_text(),
-            report=(directory / "reports/design_research_brief.md").read_text(),
-        )
 
     return app
 

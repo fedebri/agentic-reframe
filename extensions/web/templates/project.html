@@ -48,7 +48,7 @@
   <fieldset id="independent-interpretation">
     <legend>Your independent interpretation: <span id="interpretation-exercise">{{ exercise.id.replace('_', ' ').capitalize() }}</span></legend>
     <p>Complete this before seeing AI output. It is saved separately and never sent to the AI. Write “unknown” where evidence is missing.</p>
-    <p>Use Save draft to keep unfinished answers for later. Preparing a run freezes a separate interpretation for that run.</p>
+    <p>Use Save draft to keep unfinished answers before switching projects. Preparing a run freezes a separate interpretation for that run.</p>
     <p id="exercise-draft-note" hidden>Switching exercises keeps separate drafts on this page. Save each draft before leaving or reloading.</p>
     {% if draft_saved %}<p id="draft-saved-status" role="status">Draft saved. You can return to it later{% if signed_in %} on another device{% endif %}.</p>{% endif %}
     <div id="interpretation-fields">

@@ -17,11 +17,4 @@
 <p>Start your own independent project from a shared brief. Other testers' evidence, answers, and reviews are not copied.</p>
 <ul>{% for template in templates %}<li><a href="{{ url_for('start_template', template_id=template.id) }}">{{ template.name }}</a></li>{% endfor %}</ul>
 {% endif %}
-<hr>
-<h3>Try the worked example</h3>
-<p>A fictional library case shows two inquiry rounds and a correction. Its evidence, AI responses, and human reviews are supplied examples. It makes no AI calls.</p>
-<form method="post" action="{{ url_for('example') }}">
-  <input type="hidden" name="csrf" value="{{ csrf }}">
-  <button type="submit">Open fictional example</button>
-</form>
 {% endblock %}

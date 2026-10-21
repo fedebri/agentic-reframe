@@ -332,6 +332,16 @@ the bundle uploaded, not that authenticated application requests work. Keep toke
 cookies and API keys out of shared logs. A 401 after sign-in points instead to the
 Access token, issuer or application AUD; keep signature verification enabled.
 
+The normal landing page is `/`. A message that Cloudflare signing keys are
+temporarily unavailable means the website could not retrieve the public keys
+needed to verify the Access token; it is not a separate login landing page.
+Opening Home can succeed because it makes a new verification attempt.
+The adapter retains PyJWT's five-minute public-key cache across requests and
+retries network errors, HTTP 429 and server errors once, after 250 ms. Each fetch
+still has a five-second timeout. Persistent failures return HTTP 503; every
+request still checks the token's signature, issuer, audience and expiry. The
+cache is replaced when the configured issuer or audience changes.
+
 ## Operations and current boundaries
 
 - Full disaster recovery needs both the private R2 revisions and the Durable

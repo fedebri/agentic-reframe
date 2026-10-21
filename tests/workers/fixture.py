@@ -9,12 +9,17 @@ import workers
 from workers import Response, WorkerEntrypoint, wsgi
 
 identity_keys = None
+identity_fetches = 0
 attempts = {}
 
 
 async def fictional_provider(url, **options):
     """Intercept every outbound fetch; no external network is allowed in this runner."""
     if str(url) == "https://fictional.cloudflareaccess.com/cdn-cgi/access/certs":
+        global identity_fetches
+        identity_fetches += 1
+        if identity_fetches == 1:
+            return Response("FICTIONAL temporary key-service outage", status=503)
         return Response.json(identity_keys)
     if not str(url).startswith("https://api.openai.com/v1/responses"):
         raise AssertionError("The fixture runner cannot contact external services.")
@@ -114,7 +119,8 @@ class Default(WorkerEntrypoint):
 
             from extensions.cloudflare.runtime import WorkersIdentity
 
-            global identity_keys
+            global identity_keys, identity_fetches
+            identity_fetches = 0
             private = rsa.generate_private_key(public_exponent=65537, key_size=2048)
             jwk = json.loads(jwt.algorithms.RSAAlgorithm.to_jwk(private.public_key()))
             identity_keys = {"keys": [{**jwk, "kid": "fictional", "alg": "RS256"}]}
@@ -132,6 +138,8 @@ class Default(WorkerEntrypoint):
                 payload, private, algorithm="RS256", headers={"kid": "fictional"}
             )
             assert verifier.authenticate(token).subject == "fictional-subject"
+            assert verifier.authenticate(token).subject == "fictional-subject"
+            assert identity_fetches == 2
             invalid = jwt.encode(
                 {**payload, "aud": ["wrong-audience"]},
                 private,
@@ -142,7 +150,12 @@ class Default(WorkerEntrypoint):
                 verifier.authenticate(invalid)
             except jwt.InvalidTokenError:
                 return Response.json(
-                    {"signature_verified": True, "wrong_audience_rejected": True}
+                    {
+                        "signature_verified": True,
+                        "wrong_audience_rejected": True,
+                        "temporary_failure_retried": True,
+                        "cached_keys_reused": True,
+                    }
                 )
             raise AssertionError("An invalid Access audience was accepted.")
         from extensions.cloudflare.runner import app

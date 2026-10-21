@@ -798,19 +798,74 @@ def test_saved_projects_cannot_be_opened_by_another_browser(
     )
     assert post(other, "/projects", {"workspace_id": workspace.name}).status_code == 404
     assert b"FICTIONAL workshop inquiry" not in other.get("/projects").data
+    assert b"FICTIONAL workshop inquiry" not in other.get("/project").data
 
 
-@pytest.mark.parametrize(
-    "web_app", [{"PROJECT_CONFIG": web.ROOT / "config/project.yaml"}], indirect=True
-)
-def test_example_is_fictional_and_does_not_apply_reviews_to_a_real_project(
-    browser, workspace
+def test_project_selector_and_list_reopen_current_and_other_projects(
+    browser, workspace, prepared
 ):
-    response = post(browser, "/example")
-    assert response.status_code == 200
-    assert b"fictional fixtures" in response.data
-    assert b"No AI call or actual fieldwork occurred" in response.data
-    assert not (workspace / "ledger/events.jsonl").exists()
+    assert (
+        post(
+            browser,
+            "/project/draft",
+            {"exercise": "frame_challenge", "draft_version": "0", "framing": "FIRST"},
+        ).status_code
+        == 302
+    )
+    assert (
+        post(
+            browser,
+            "/create",
+            {
+                "restart_from": workspace.name,
+                "name": "FICTIONAL second <project>",
+                "author": "fictional-tester",
+                "brief_text": "FICTIONAL: a second challenge.",
+            },
+        ).status_code
+        == 302
+    )
+    with browser.session_transaction() as state:
+        second_id = state["workspace_id"]
+    assert (
+        post(
+            browser,
+            "/project/draft",
+            {"exercise": "frame_challenge", "draft_version": "0", "framing": "SECOND"},
+        ).status_code
+        == 302
+    )
+    for path in ("/", "/projects", "/project"):
+        page = browser.get(path).get_data(as_text=True)
+        selector = re.search(r'<select name="workspace_id".*?</select>', page, re.S)[0]
+        assert f'value="{workspace.name}"' in selector
+        assert f'value="{second_id}" selected' in selector
+        assert "FICTIONAL second &lt;project&gt;" in selector
+        assert ">Your project</a>" not in page
+    page = browser.get("/projects").get_data(as_text=True)
+    # The current row needs a real form too; otherwise the list cannot reopen it.
+    assert f'name="workspace_id" value="{second_id}"' in page
+    assert post(browser, "/projects", {"workspace_id": second_id}).status_code == 302
+    assert b">SECOND</textarea>" in browser.get("/project").data
+    assert (
+        post(browser, "/projects", {"workspace_id": workspace.name}).status_code == 302
+    )
+    assert b">FIRST</textarea>" in browser.get("/project").data
+    run_page = browser.get(prepared).get_data(as_text=True)
+    assert f'value="{second_id}"' in run_page
+    assert post(browser, "/projects", {"workspace_id": second_id}).status_code == 302
+    assert browser.get(prepared).status_code == 404
+    assert b">SECOND</textarea>" in browser.get("/project").data
+
+
+def test_website_no_longer_exposes_worked_example(browser, workspace, prepared):
+    for path in ("/", "/projects", "/project", prepared):
+        page = browser.get(path).get_data(as_text=True)
+        assert "worked example" not in page.lower()
+        assert 'action="/example"' not in page
+    assert browser.get("/example").status_code == 404
+    assert post(browser, "/example").status_code == 404
+    assert not (workspace.parent.parent / "examples").exists()
 
 
 def test_browser_session_survives_app_restart(web_app, browser, workspace):

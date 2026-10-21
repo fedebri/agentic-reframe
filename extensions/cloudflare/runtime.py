@@ -1,5 +1,7 @@
 """Workers-specific storage, authentication, and HTTP transport boundaries."""
 
+import asyncio
+import logging
 import shutil
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -16,6 +18,7 @@ if TYPE_CHECKING:
 
 DATA_ROOT = Path("/tmp/agentic-reframe/data")
 RESOURCE_ROOT = Path("/tmp/agentic-reframe/resources")
+logger = logging.getLogger(__name__)
 
 
 def stage_resources() -> Path:
@@ -43,17 +46,27 @@ class WorkersKeys(jwt.PyJWKClient):
         from pyodide.ffi import run_sync
         from workers import fetch
 
-        try:
-            response = run_sync(fetch(self.uri, signal=AbortSignal.timeout(5000)))
-            if response.status != 200:
-                raise jwt.PyJWKClientConnectionError("Access signing keys unavailable.")
-            data = run_sync(response.json())
-        except jwt.PyJWKClientConnectionError:
-            raise
-        except Exception as error:
-            raise jwt.PyJWKClientConnectionError(
-                "Access signing keys unavailable."
-            ) from error
+        for attempt in range(2):
+            retryable = True
+            try:
+                response = run_sync(fetch(self.uri, signal=AbortSignal.timeout(5000)))
+                retryable = response.status in {200, 429} or response.status >= 500
+                if response.status != 200:
+                    raise jwt.PyJWKClientConnectionError(
+                        f"Access signing keys unavailable (HTTP {response.status})."
+                    )
+                data = run_sync(response.json())
+                break
+            except Exception as error:
+                if not retryable or attempt == 1:
+                    raise jwt.PyJWKClientConnectionError(
+                        "Access signing keys unavailable."
+                    ) from error
+                logger.warning(
+                    "Access signing-key fetch failed (%s); retrying once.",
+                    type(error).__name__,
+                )
+                run_sync(asyncio.sleep(0.25))
         if self.jwk_set_cache is not None:
             self.jwk_set_cache.put(data)
         return data
@@ -65,6 +78,9 @@ class WorkersIdentity(AccessIdentity):
     def __init__(self, issuer: str, audience: str):
         super().__init__(issuer, audience)
         self.keys = WorkersKeys(f"{self.issuer}/cdn-cgi/access/certs", lifespan=300)
+
+
+_access_identity: WorkersIdentity | None = None
 
 
 class WorkersTransport(httpx.BaseTransport):
@@ -119,6 +135,8 @@ def api_client(key: str, timeout_seconds: float) -> "OpenAI":
 
 def hosted_app(env, root: Path = DATA_ROOT):
     """Create the existing Flask interface on a serialized, restored snapshot."""
+    global _access_identity
+
     # The OpenAI SDK initializes random values on import. Workers disallows that
     # during startup snapshots, so load the existing web/core code inside a request.
     from extensions.web.app import create_app
@@ -129,6 +147,14 @@ def hosted_app(env, root: Path = DATA_ROOT):
         raise ValueError("Set the WEB_SECRET_KEY Worker secret before opening the app.")
     issuer = getattr(env, "WEB_ACCESS_TEAM_DOMAIN", "")
     audience = getattr(env, "WEB_ACCESS_AUD", "")
+    if not local and (
+        _access_identity is None
+        or _access_identity.issuer != issuer.rstrip("/")
+        or _access_identity.audience != audience
+    ):
+        # Flask is rebuilt for each restored snapshot. Keep PyJWT's five-minute
+        # public-key cache alive across those requests, never the user's identity.
+        _access_identity = WorkersIdentity(issuer, audience)
     return create_app(
         {
             "DATA_ROOT": root,
@@ -146,5 +172,5 @@ def hosted_app(env, root: Path = DATA_ROOT):
             "SESSION_COOKIE_NAME": "agentic_reframe_cloudflare",
         },
         store=SnapshotStore(root),
-        access=None if local else WorkersIdentity(issuer, audience),
+        access=None if local else _access_identity,
     )

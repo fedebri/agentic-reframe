@@ -38,9 +38,13 @@ using the same `WEB_DATA_ROOT` if you changed it:
 ```
 
 Open <http://127.0.0.1:8787>. Live model calls are **disabled by default**.
-The worked fictional example runs the existing zero-cost tutorial in its own
-directory. Its supplied human decisions are explicitly fictional and never apply
-to an actual tester's project.
+The website focuses on the tester's projects. The fictional tutorial remains
+available through the core CLI rather than a worked-example website page.
+
+**My projects** lists all projects owned by the current identity. Every project,
+including the current one, has an **Open project** button. A named project selector
+in the shared header lets you open another project or return from a run/review to
+the current project's exercises. Save unfinished answers before switching projects.
 
 The normal workflow supports:
 
@@ -116,7 +120,8 @@ Default runtime storage is `extensions/web/.data/`, ignored by the extension's
 own `.gitignore`. Set `WEB_DATA_ROOT` to an absolute persistent directory when
 hosting. Keep this directory private and back it up: it holds uploads, project
 indexes, configuration copies, run checkpoints, reviews, reports, isolated
-append-only ledgers, fictional examples, and the generated session-signing key.
+append-only ledgers, and the generated session-signing key. Older example files,
+if present from an earlier version, are retained.
 Repository evidence and the repository's `outputs/v2/` ledger are never used as
 web-project storage or automatically assigned as evidence.
 
