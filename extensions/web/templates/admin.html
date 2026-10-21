@@ -3,7 +3,7 @@
 {% block content %}
 <h2>Administration</h2>
 <p>Projects remain independent. This administrator view is available only to the verified emails configured by the host.</p>
-<p>Deployment cap: ${{ total_cap }}. Estimated charges: ${{ '%.6f' | format(projects | sum(attribute='charged') / 1000000) }}. Pending allocations: ${{ '%.6f' | format(projects | sum(attribute='pending') / 1000000) }}.</p>
+<p>{% if budgets_enabled %}Deployment cap: ${{ total_cap }}.{% else %}Application spending limits are disabled.{% endif %} Estimated charges: ${{ '%.6f' | format(projects | sum(attribute='charged') / 1000000) }}. Pending allocations: ${{ '%.6f' | format(projects | sum(attribute='pending') / 1000000) }}.</p>
 <table>
 <caption>Projects</caption><thead><tr><th>Project</th><th>Owner</th><th>Researcher</th><th>Last activity (UTC)</th><th>Estimated USD</th></tr></thead>
 <tbody>{% for item in projects %}<tr><td><a href="{{ url_for('admin_project', workspace_id=item.id) }}">{{ item.name }}</a></td><td>{{ item.email or 'Local browser preview' }}</td><td>{{ item.author }}</td><td>{{ item.updated_at }}</td><td>{{ '%.6f' | format((item.charged + item.pending) / 1000000) }}</td></tr>{% else %}<tr><td colspan="5">No projects yet.</td></tr>{% endfor %}</tbody>

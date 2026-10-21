@@ -14,7 +14,7 @@ checks and deployment gates.
 | Component | Responsibility |
 | --- | --- |
 | Public Python Worker | Serve the existing Flask website and verify Access identities |
-| One Durable Object (`Cohort`) | Serialize short changes, commit snapshots, reserve budgets, wake queued jobs |
+| One Durable Object (`Cohort`) | Serialize short changes, commit snapshots, record spending estimates, wake queued jobs |
 | Private Python runner Worker | Execute the unchanged analyst/critic workflow outside browser requests |
 | Private R2 bucket | Preserve immutable snapshots and analysis artifacts |
 | Cloudflare Access | Invite testers using their email identities |
@@ -153,6 +153,7 @@ WEB_ACCESS_TEAM_DOMAIN = "https://your-team.cloudflareaccess.com"
 WEB_ACCESS_AUD = "your-application-audience"
 WEB_ADMIN_EMAILS = "your-email@example.com"
 WEB_LIVE_ENABLED = "0"
+WEB_BUDGETS_ENABLED = "1"
 WEB_RUN_BUDGET_USD = "0.50"
 WEB_USER_BUDGET_USD = "2.00"
 WEB_TOTAL_BUDGET_USD = "5.00"
@@ -225,11 +226,12 @@ the cohort at `/admin` and publish a brief for independent copies as before.
 
 ## 7. Enable real analysis deliberately
 
-The current production configurations enable live analysis on both Workers, with
-the configured estimated caps: **$0.50 per run, $2.00 per tester across their projects,
-and $5.00 across the deployment**. Local development stays disabled with zero
-budgets. For a new staging installation, keep the production live flags at `"0"`
-until the non-AI deployment checks pass.
+The current production configurations enable live analysis on both Workers.
+The website sets **`WEB_BUDGETS_ENABLED = "0"`**, so the application does not
+enforce run, tester, or deployment dollar caps. Paid calls use the project's
+API funding controls. The saved $0.50/$2.00/$5.00 values are ignored in this mode.
+Local development keeps live calls disabled. For a new staging installation,
+keep the production live flags at `"0"` until the non-AI deployment checks pass.
 
 Before enabling the website for testers, add the key as a runtime **Secret** on
 **agentic-reframe-runner**, using **Settings → Variables and Secrets → Add**:
@@ -252,9 +254,17 @@ launches the paid call; enabling the feature alone does not queue an analysis.
 
 The model, reasoning and price estimates come from the existing project config and
 are frozen into each run. An explicit browser authorization queues each analysis.
-Retries stay bounded by the core configuration and its cost reservations. The
-tester's allowance spans their projects and restarts; the deployment cap is shared.
-These are conservative application estimates, not provider-enforced billing limits.
+The unchanged core still receives a finite accounting estimate covering the run's
+maximum input/output tokens and bounded retries, including the optional critic.
+This estimate covers all permitted calls without adding a dollar spending cap.
+Token, upload, timeout and retry limits remain in effect.
+
+Spending history remains recorded, including earlier interrupted allocations;
+it does not block new authorized attempts while application caps are disabled.
+To reinstate the saved caps, set `WEB_BUDGETS_ENABLED = "1"` in `wrangler.toml`
+and redeploy the website. Historical charges will count again, across each
+tester's projects and the whole deployment. This setting belongs to the website
+Worker; the runner needs only its existing live flag and API key.
 
 An alarm/runner interruption retains the full allocation, marks the job interrupted,
 and requires explicit human retry consent. A timed-out request might still have
@@ -356,6 +366,31 @@ retries network errors, HTTP 429 and server errors once, after 250 ms. Each fetc
 still has a five-second timeout. Persistent failures return HTTP 503; every
 request still checks the token's signature, issuer, audience and expiry. The
 cache is replaced when the configured issuer or audience changes.
+
+### An analysis stops and its allowance is exhausted
+
+If the private runner returns a non-200 response, its connection fails, or the
+coordinator recovers an interrupted job, the allocation is retained because
+provider execution/billing is uncertain. When application caps are enabled,
+retaining $0.50 exhausts a $0.50 run allowance even when the tester/deployment
+still has funds. With `WEB_BUDGETS_ENABLED = "0"`, that retained estimate does
+not prevent an explicitly authorized retry. The recorded estimate does not
+establish the provider's actual charge. Keep the failed run and frozen inputs;
+do not clear spending or automatically retry.
+
+Both production Workers now enable Cloudflare Observability. Deploy the runner,
+then the website, to apply diagnostics. Previously unrecorded logs cannot be
+recovered by enabling logging later. In **Workers & Pages → select Worker →
+Observability**, inspect the failed invocation and its outcome/exception. Check
+both the runner's `/execute` request and the website's alarm invocation.
+
+The runner logs its job ID at snapshot restore, API-client initialization,
+analysis execution and result save. These markers contain no API key, source
+text, or model request body. The website retains the runner's HTTP status or
+exception type for new failed calls and displays **interrupted** rather than
+the unchanged **prepared** artifact status. Existing saved error messages remain.
+Disabling application caps does not diagnose or repair the runner interruption.
+Use these logs if the next authorized attempt also stops.
 
 ## Operations and current boundaries
 

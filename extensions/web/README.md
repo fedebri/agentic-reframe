@@ -53,7 +53,7 @@ The normal workflow supports:
 3. Answer exercise-specific questions and freeze an independent interpretation,
    withheld from AI. Then select evidence and any reviewed findings to include.
 4. Inspect the frozen sources and exact AI request without making a model call.
-5. When enabled by the host, authorize an estimated budget and queue the existing
+5. When enabled by the host, authorize a paid call and queue the existing
    analyst and optional critic. A separate worker processes the job; the browser
    can be closed and revisited. Failed calls require an explicit retry.
 6. Compare interpretations, decide every claim, and record a revised or defended
@@ -109,10 +109,11 @@ project** opens the same form with empty fields.
 Both actions create a new project with no evidence, runs, prior claims, or
 ledger. Earlier project directories, frozen inputs, reviews, and ledger history
 are retained unchanged. **My projects** lets the owner reopen them.
-Upload and select evidence again in the fresh project. Restarting does not
-replenish the owner's spending allowance: reservations from all their projects
-continue to count. A restart form from a different active project is rejected,
-so a stale tab cannot silently replace the project you are working on.
+Upload and select evidence again in the fresh project. When application spending
+caps are enabled, restarting does not replenish the owner's allowance:
+reservations from all their projects continue to count. A restart form from a
+different active project is rejected, so a stale tab cannot silently replace
+the project you are working on.
 
 ## Storage and separation
 
@@ -188,21 +189,32 @@ Launching either process does not call the API. The project page reports whether
 enabled. Save an interpretation and preview its request, then check the spending
 authorization and choose **Run AI analysis** on the saved run page.
 
-The host opts in with `WEB_LIVE_ENABLED=1` and positive caps; a local web process
-that already has `OPENAI_API_KEY` also retains the previous opt-in behavior when
+By default, the host opts in with `WEB_LIVE_ENABLED=1` and positive caps; a local
+web process that already has `OPENAI_API_KEY` retains the previous opt-in behavior when
 `WEB_LIVE_ENABLED` is unset. The worker must have its own key environment. The old
 `WEB_PROJECT_BUDGET_USD` is a compatibility fallback for the user cap if
 `WEB_USER_BUDGET_USD` is unset.
 
-Each paid submission requires the authorization checkbox. SQLite reserves the
-available amount in one transaction across the run, owner, and deployment. Other
+To disable all three application spending caps, set `WEB_BUDGETS_ENABLED=0` in
+the web process's environment and restart it. The production Cloudflare website
+already selects this mode in `wrangler.toml`. The app then relies on the
+project's API funding controls; old spending does not prevent a new authorized
+attempt. The unchanged core receives an accounting estimate derived from each
+frozen run's maximum token counts and bounded retries. Token, upload, timeout
+and retry limits still apply. Set `WEB_BUDGETS_ENABLED=1` to restore the saved
+caps, including historical charges.
+
+Each paid submission requires the authorization checkbox. With caps enabled,
+SQLite reserves the available amount in one transaction across the run, owner,
+and deployment. Other
 queued jobs count immediately. The worker reconciles accepted core reservations
 and releases only unused allocations. Failed/uncertain calls retain charges;
 hard-interrupted jobs retain the full allocation and require explicit retry.
 No browser request changes the caps or receives the API key.
 
 These are conservative local cost estimates, not provider-enforced billing
-limits. Use the deployment cap and the provider's own account controls together.
+limits. When enabled, use the deployment cap alongside the provider's account
+controls.
 Existing run manifests retain their saved model, settings, and prices.
 
 ## Verification and current limits

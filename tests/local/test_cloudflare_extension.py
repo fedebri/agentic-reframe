@@ -308,7 +308,64 @@ def test_alarm_recovery_charges_interrupted_job_without_repeating_it(cohort):
         assert db.execute("SELECT charged FROM spending").fetchone()[0] == 100_000
 
 
-def test_production_configs_enable_budgeted_calls_and_keep_runner_private():
+@pytest.mark.parametrize(
+    ("failure", "expected"),
+    [("http", "HTTP 500"), ("network", "OSError"), ("json", "ValueError")],
+)
+def test_runner_failure_is_recorded_without_releasing_or_repeating_allocation(
+    cohort, failure, expected, caplog
+):
+    instance, root = cohort
+    store = asyncio.run(instance.restore())
+    owner = store.user("fictional", "subject", "tester@example.test")
+    with store.connection(write=True) as db:
+        db.execute(
+            "INSERT INTO projects(id, owner_id, name, author) "
+            "VALUES ('project', ?, 'test', 'test')",
+            (owner["id"],),
+        )
+    job_id = store.enqueue(
+        "project", "run", Decimal("0.50"), Decimal("2"), Decimal("5"), retry=False
+    )
+    asyncio.run(instance.checkpoint(store))
+    calls = []
+
+    async def runner_fetch(*args, **kwargs):
+        calls.append((args, kwargs))
+        if failure == "network":
+            raise OSError("DO-NOT-EXPOSE-PRIVATE-FAILURE")
+
+        async def read_json():
+            raise ValueError("DO-NOT-EXPOSE-PRIVATE-RESPONSE")
+
+        return types.SimpleNamespace(
+            status=500 if failure == "http" else 200, json=read_json
+        )
+
+    instance.env.RUNNER = types.SimpleNamespace(fetch=runner_fetch)
+    asyncio.run(instance.alarm())
+    restored = asyncio.run(instance.restore())
+    with restored.connection() as db:
+        job = db.execute("SELECT * FROM jobs WHERE id=?", (job_id,)).fetchone()
+        assert job["state"] == "interrupted"
+        assert job["allocated"] == 0
+        assert expected in job["error"]
+        assert "provider billing is unconfirmed" in job["error"]
+        assert "DO-NOT-EXPOSE" not in job["error"]
+        assert db.execute("SELECT charged FROM spending").fetchone()[0] == 500_000
+        assert (
+            restored.available(
+                db, "project", "run", Decimal("0.50"), Decimal("2"), Decimal("5")
+            )
+            == 0
+        )
+    assert "DO-NOT-EXPOSE" not in caplog.text
+    assert expected in caplog.text
+    asyncio.run(instance.alarm())
+    assert len(calls) == 1
+
+
+def test_production_configs_enable_provider_funded_calls_and_keep_runner_private():
     import tomllib
 
     configs = ROOT / "extensions/cloudflare"
@@ -319,12 +376,14 @@ def test_production_configs_enable_budgeted_calls_and_keep_runner_private():
     AccessIdentity(web["vars"]["WEB_ACCESS_TEAM_DOMAIN"], web["vars"]["WEB_ACCESS_AUD"])
     assert not runner["workers_dev"]
     for config in (web, runner):
+        assert config["observability"]["enabled"]
         assert not config["preview_urls"]
         assert config["vars"]["WEB_LIVE_ENABLED"] == "1"
         assert "OPENAI_API_KEY" not in config["vars"]
         assert "DEV_MODE" not in config["vars"]
     assert "routes" not in runner
     assert web["services"][0]["service"] == runner["name"]
+    assert web["vars"]["WEB_BUDGETS_ENABLED"] == "0"
     budgets = web["vars"]
     assert (
         Decimal("0")
@@ -334,4 +393,5 @@ def test_production_configs_enable_budgeted_calls_and_keep_runner_private():
     )
     local = web["env"]["local"]["vars"]
     assert local["WEB_LIVE_ENABLED"] == "0"
+    assert local["WEB_BUDGETS_ENABLED"] == "1"
     assert local["WEB_RUN_BUDGET_USD"] == "0"

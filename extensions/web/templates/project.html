@@ -6,7 +6,7 @@
 <details><summary>Your challenge brief</summary><pre>{{ brief }}</pre></details>
 <p><a href="{{ url_for('restart') }}">Revise the brief and restart</a> | <a href="{{ url_for('restart', blank='1') }}">Start a blank project</a></p>
 {% if live_available %}
-<p>Real AI requests are enabled. Save an interpretation, preview the request, then authorize the displayed spending estimate to run the analysis.</p>
+<p>Real AI requests are enabled. Save an interpretation, preview the request, then {% if budgets_enabled %}authorize the displayed spending estimate{% else %}authorize a paid call using the project's API funding{% endif %} to run the analysis.</p>
 {% else %}
 <p>Real AI requests are disabled on this host. You can still prepare exercises and inspect request previews.</p>
 {% endif %}

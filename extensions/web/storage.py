@@ -162,8 +162,9 @@ class WebStore:
         total_cap: Decimal,
         *,
         retry: bool,
+        estimated_cost: Decimal | None = None,
     ) -> str:
-        """Reserve all quota atomically before a job can make any provider request."""
+        """Queue with enforced quotas or a per-attempt accounting estimate."""
         with self.connection(write=True) as db:
             active = db.execute(
                 "SELECT id, run_id FROM jobs WHERE project_id=? "
@@ -180,8 +181,10 @@ class WebStore:
                 "INSERT OR IGNORE INTO spending(project_id, run_id) VALUES (?, ?)",
                 (project_id, run_id),
             )
-            allocation = self.available(
-                db, project_id, run_id, run_cap, user_cap, total_cap
+            allocation = (
+                self.available(db, project_id, run_id, run_cap, user_cap, total_cap)
+                if estimated_cost is None
+                else budget_units(estimated_cost)
             )
             if allocation <= 0:
                 raise ValueError(
@@ -229,7 +232,7 @@ class WebStore:
                 (job["project_id"],),
             )
 
-    def interrupt_running(self) -> None:
+    def interrupt_running(self, error: str | None = None) -> None:
         """After acquiring the worker lock, retain interrupted allocations."""
         with self.connection(write=True) as db:
             for job in db.execute(
@@ -242,7 +245,11 @@ class WebStore:
                 )
             db.execute(
                 "UPDATE jobs SET state='interrupted', allocated=0, "
-                "error='The worker stopped. The allocation remains charged; "
-                "explicit retry is required.', "
-                "updated_at=strftime('%Y-%m-%dT%H:%M:%SZ', 'now') WHERE state='running'"
+                "error=?, updated_at=strftime('%Y-%m-%dT%H:%M:%SZ', 'now') "
+                "WHERE state='running'",
+                (
+                    error
+                    or "The worker stopped. The allocation remains charged; "
+                    "explicit retry is required.",
+                ),
             )

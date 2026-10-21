@@ -43,26 +43,38 @@
 <p><a href="{{ url_for('review', run_id=run_id) }}">{% if reviewed %}View saved review{% else %}Review claims and record your reflection{% endif %}</a></p>
 {% else %}
 <h3>Run the analysis</h3>
+<p>This run's recorded estimate: ${{ reserved }}.{% if budgets_enabled %} Per-run allowance: ${{ run_cap }}.{% endif %}</p>
+{% if job and job.state == 'interrupted' %}
+<p>The full allocation is retained because the runner did not return a confirmed result. Provider billing is unconfirmed. Check the runner logs before authorizing another attempt.</p>
+{% endif %}
 {% if job and job.state in ['queued', 'running'] %}
 <p>Your analysis is {{ job.state }}. You can leave this page and return from My projects. This page refreshes every five seconds.</p>
 {% if job.state == 'queued' %}<p>Queued work waits for the host's background worker. If the status does not change, ask the host to check that service.</p>{% endif %}
 <p><a href="{{ url_for('run', run_id=run_id) }}">Refresh status now</a></p>
-{% elif live_enabled and budget > reserved %}
+{% elif live_enabled and (not budgets_enabled or budget > reserved) %}
+{% if budgets_enabled %}
 <p>The maximum reserved estimate for this run is ${{ budget }} including earlier attempts. So far ${{ reserved }} has been charged in local estimates. All your projects and restarts count toward your tester allowance, and the deployment has a shared cap. These are local estimates, not provider-enforced billing limits.</p>
+{% else %}
+<p>Application spending limits are disabled. Paid calls use the project's API funding.</p>
+{% endif %}
 <form method="post">
   <input type="hidden" name="csrf" value="{{ csrf }}">
   <input type="hidden" name="project_id" value="{{ project_id }}">
   {% if status.state in ['failed', 'running'] or (job and job.state in ['failed', 'interrupted']) %}
   <input type="hidden" name="retry_failed" value="yes">
-  <p><label><input type="checkbox" name="authorize" value="yes" required> Authorize resuming this run within the displayed estimate, including retrying an interrupted or failed call. Earlier reservations still count.</label></p>
+  <p><label><input type="checkbox" name="authorize" value="yes" required> {% if budgets_enabled %}Authorize resuming this run within the displayed estimate, including retrying an interrupted or failed call. Earlier reservations still count.{% else %}Authorize a paid retry of this interrupted or failed run using the project's API funding. Earlier attempts may already have incurred charges.{% endif %}</label></p>
   {% else %}
-  <p><label><input type="checkbox" name="authorize" value="yes" required> Authorize an AI run within the displayed estimate.</label></p>
+  <p><label><input type="checkbox" name="authorize" value="yes" required> {% if budgets_enabled %}Authorize an AI run within the displayed estimate.{% else %}Authorize a paid AI analysis using the project's API funding.{% endif %}</label></p>
   {% endif %}
   <button type="submit">Run AI analysis</button>
 </form>
 <p>This queues an analysis for the background worker. A saved response can be resumed without another call.</p>
 {% elif live_enabled %}
+{% if reserved >= run_cap %}
+<p>This run's allowance is exhausted. Its retained allocation also counts toward the tester and deployment allowances.</p>
+{% else %}
 <p>The run, tester, or deployment allowance is exhausted or allocated to pending work. Earlier projects and restarts retain their charges.</p>
+{% endif %}
 {% else %}
 <p>Live AI calls are disabled on this host. Your files, interpretation, and request preview are saved.</p>
 {% endif %}

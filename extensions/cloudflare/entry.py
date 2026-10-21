@@ -124,7 +124,7 @@ class Cohort(DurableObject):
         head = await self.checkpoint(store)
         return {"job": job, "snapshot": head}
 
-    async def finish(self, claimed, result):
+    async def finish(self, claimed, result, error=None):
         store = await self.restore()
         job = claimed["job"]
         with store.connection() as db:
@@ -136,7 +136,7 @@ class Cohort(DurableObject):
         if result is None:
             # A runner/network failure can happen after the provider has charged us.
             # Retain the whole allocation, preserving the explicit retry policy.
-            store.interrupt_running()
+            store.interrupt_running(error)
         else:
             artifact = await self.env.RESEARCH.get(result["artifact"])
             if artifact is None:
@@ -152,6 +152,7 @@ class Cohort(DurableObject):
         if claimed is None:
             return
         result = None
+        failure = None
         try:
             # This await is outside the gate: browser reads and draft saves continue.
             response = await self.env.RUNNER.fetch(
@@ -164,9 +165,29 @@ class Cohort(DurableObject):
             )
             if response.status == 200:
                 result = await response.json()
+            else:
+                failure = (
+                    f"The private runner returned HTTP {response.status}. "
+                    "No result was saved; the allocation is retained because "
+                    "provider billing is unconfirmed. Explicit retry is required."
+                )
+                logger.error(
+                    "Runner job %s returned HTTP %s",
+                    claimed["job"]["id"],
+                    response.status,
+                )
         except Exception as error:
-            logger.error("Analysis runner interrupted (%s)", type(error).__name__)
-        await self.gate(self.finish, claimed, result)
+            failure = (
+                f"The private runner request failed ({type(error).__name__}). "
+                "No result was saved; the allocation is retained because "
+                "provider billing is unconfirmed. Explicit retry is required."
+            )
+            logger.error(
+                "Runner job %s interrupted (%s)",
+                claimed["job"]["id"],
+                type(error).__name__,
+            )
+        await self.gate(self.finish, claimed, result, failure)
 
 
 class Default(WorkerEntrypoint):

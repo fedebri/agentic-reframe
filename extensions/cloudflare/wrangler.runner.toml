@@ -25,4 +25,4 @@ bucket_name = "agentic-reframe-private"
 WEB_LIVE_ENABLED = "1"
 
 [observability]
-enabled = false
+enabled = true

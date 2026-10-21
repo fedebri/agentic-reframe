@@ -98,6 +98,7 @@ def create_app(
         PROJECT_BUDGET_USD=os.environ.get("WEB_PROJECT_BUDGET_USD", "0.50"),
         USER_BUDGET_USD=os.environ.get("WEB_USER_BUDGET_USD"),
         TOTAL_BUDGET_USD=os.environ.get("WEB_TOTAL_BUDGET_USD", "5.00"),
+        BUDGETS_ENABLED=os.environ.get("WEB_BUDGETS_ENABLED", "1") == "1",
         LIVE_ENABLED=(os.environ["WEB_LIVE_ENABLED"] == "1")
         if "WEB_LIVE_ENABLED" in os.environ
         else None,
@@ -139,6 +140,7 @@ def create_app(
         else app.config["PROJECT_BUDGET_USD"]
     )
     total_cap = Decimal(app.config["TOTAL_BUDGET_USD"])
+    budgets_enabled = app.config["BUDGETS_ENABLED"]
     if not all(
         value.is_finite() and value >= 0 for value in (run_cap, user_cap, total_cap)
     ):
@@ -313,9 +315,10 @@ def create_app(
         return {
             "csrf": session["csrf"],
             "live_available": (
-                run_cap > 0
-                and user_cap > 0
-                and total_cap > 0
+                (
+                    not budgets_enabled
+                    or (run_cap > 0 and user_cap > 0 and total_cap > 0)
+                )
                 and (
                     app.config["LIVE_ENABLED"]
                     if app.config["LIVE_ENABLED"] is not None
@@ -327,6 +330,7 @@ def create_app(
             "identity_email": g.user["email"] if hasattr(g, "user") else None,
             "project_id": session.get("workspace_id"),
             "project_choices": project_choices,
+            "budgets_enabled": budgets_enabled,
         }
 
     @app.errorhandler(ValueError)
@@ -532,7 +536,8 @@ def create_app(
             job = latest_jobs.get(run_id)
             status = (
                 {"state": job["state"]}
-                if job and job["state"] in {"queued", "running"}
+                if job
+                and job["state"] in {"queued", "running", "failed", "interrupted"}
                 else json.loads((directory / "status.json").read_text())
             )
             runs.append({"id": run_id, **item, "state": status["state"]})
@@ -700,7 +705,8 @@ def create_app(
         active = job is not None and job["state"] in {"queued", "running"}
         status = (
             {"state": job["state"]}
-            if active
+            if job is not None
+            and job["state"] in {"queued", "running", "failed", "interrupted"}
             else json.loads((directory / "status.json").read_text())
         )
         # Import reservations from runs prepared by the earlier adapter.
@@ -717,8 +723,12 @@ def create_app(
                     ),
                 )
         with store.connection() as db:
-            remaining = store.available(
-                db, session["workspace_id"], run_id, run_cap, user_cap, total_cap
+            remaining = (
+                store.available(
+                    db, session["workspace_id"], run_id, run_cap, user_cap, total_cap
+                )
+                if budgets_enabled
+                else 0
             )
             charge = db.execute(
                 "SELECT charged FROM spending WHERE project_id=? AND run_id=?",
@@ -726,12 +736,26 @@ def create_app(
             ).fetchone()["charged"]
         charged = Decimal(charge) / 1_000_000
         budget = charged + max(Decimal(remaining) / 1_000_000, Decimal("0"))
+        estimated_cost = None
+        if not budgets_enabled:
+            # The unchanged core requires finite accounting authority. Cover every
+            # permitted token/retry for both steps without imposing a dollar cap.
+            model = manifest.model
+            estimated_cost = (
+                (
+                    model.max_input_tokens * Decimal(model.input_usd_per_million)
+                    + model.max_output_tokens * Decimal(model.output_usd_per_million)
+                )
+                / 1_000_000
+                * (model.max_retries + 1)
+                * (2 if manifest.critic_enabled else 1)
+            )
         live_enabled = form_context()["live_available"]
         if request.method == "POST":
             if not live_enabled:
                 abort(403, "Live AI calls have not been enabled by the host.")
             if request.form.get("authorize") != "yes":
-                abort(400, "Authorize the displayed spending limit before running AI.")
+                abort(400, "Authorize the paid analysis before running AI.")
             if status["state"] in {"awaiting_review", "completed"}:
                 return redirect(url_for("run", run_id=run_id))
             if (
@@ -756,6 +780,7 @@ def create_app(
                     user_cap,
                     total_cap,
                     retry=request.form.get("retry_failed") == "yes",
+                    estimated_cost=estimated_cost,
                 )
             except ValueError as error:
                 abort(400, str(error))
@@ -789,6 +814,7 @@ def create_app(
                 live_enabled=live_enabled,
                 budget=max(budget, Decimal("0")),
                 reserved=charged,
+                run_cap=run_cap,
                 job=job,
                 completed=completed,
                 reviewed=worksheet.with_suffix(".receipt.json").exists(),

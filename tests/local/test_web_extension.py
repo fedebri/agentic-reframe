@@ -38,6 +38,7 @@ def web_app(project, tmp_path, monkeypatch, request):
             "TOTAL_BUDGET_USD": "5.00",
             "AUTH_MODE": "local",
             "LIVE_ENABLED": None,
+            "BUDGETS_ENABLED": True,
             **getattr(request, "param", {}),
         }
     )

@@ -167,6 +167,7 @@ def hosted_app(env, root: Path = DATA_ROOT):
             "RUN_BUDGET_USD": getattr(env, "WEB_RUN_BUDGET_USD", "0"),
             "USER_BUDGET_USD": getattr(env, "WEB_USER_BUDGET_USD", "0.50"),
             "TOTAL_BUDGET_USD": getattr(env, "WEB_TOTAL_BUDGET_USD", "5.00"),
+            "BUDGETS_ENABLED": getattr(env, "WEB_BUDGETS_ENABLED", "1") == "1",
             "LIVE_ENABLED": getattr(env, "WEB_LIVE_ENABLED", "0") == "1",
             "SESSION_COOKIE_SECURE": not local,
             "SESSION_COOKIE_NAME": "agentic_reframe_cloudflare",

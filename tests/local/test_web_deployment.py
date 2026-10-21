@@ -35,7 +35,7 @@ def submit(client, path, data=None):
 
 
 @pytest.fixture
-def hosted(project, tmp_path, monkeypatch):
+def hosted(project, tmp_path, monkeypatch, request):
     private = rsa.generate_private_key(public_exponent=65537, key_size=2048)
     jwk = json.loads(jwt.algorithms.RSAAlgorithm.to_jwk(private.public_key()))
     monkeypatch.setattr(
@@ -61,6 +61,8 @@ def hosted(project, tmp_path, monkeypatch):
             "USER_BUDGET_USD": "0.05",
             "TOTAL_BUDGET_USD": "0.10",
             "LIVE_ENABLED": True,
+            "BUDGETS_ENABLED": True,
+            **getattr(request, "param", {}),
         }
     )
 
@@ -447,6 +449,132 @@ def test_interrupted_worker_is_not_retried_automatically(owner, pending, hosted)
             == job["allocated"]
         )
     assert submit(owner, url, {"authorize": "yes"}).status_code == 400
+    page = owner.get(url).get_data(as_text=True)
+    assert "Status: <strong>interrupted</strong>" in page
+    assert "This run's recorded estimate: $0.01" in page
+    assert "Provider billing is unconfirmed" in page
+    assert "This run's allowance is exhausted" in page
+    assert "Run AI analysis</button>" not in page
+    assert "Refresh" not in owner.get(url).headers
+    assert f'href="{url}">frame challenge</a> — interrupted' in owner.get(
+        "/project"
+    ).get_data(as_text=True)
+    status_file = (
+        store.root
+        / "projects"
+        / project_id
+        / "runs"
+        / url.rsplit("/", 1)[1]
+        / "status.json"
+    )
+    assert json.loads(status_file.read_text())["state"] == "prepared"
+
+
+@pytest.mark.parametrize(
+    "hosted",
+    [
+        {
+            "BUDGETS_ENABLED": False,
+            "RUN_BUDGET_USD": "0",
+            "USER_BUDGET_USD": "0",
+            "TOTAL_BUDGET_USD": "0",
+        }
+    ],
+    indirect=True,
+)
+@pytest.mark.parametrize("critic", [False, True])
+def test_provider_funded_analysis_ignores_caps_and_accounts_for_both_steps(
+    owner, answers, hosted, critic
+):
+    response = submit(
+        owner, "/project/prepare", {**answers, "critic": "yes" if critic else ""}
+    )
+    assert response.status_code == 302
+    url = response.headers["Location"]
+    page = owner.get(url).get_data(as_text=True)
+    assert "Application spending limits are disabled" in page
+    assert "Per-run allowance" not in page
+    assert submit(owner, url).status_code == 400
+    assert submit(owner, url, {"authorize": "yes"}).status_code == 302
+    assert submit(owner, url, {"authorize": "yes"}).status_code == 302
+    store = hosted[0].extensions["web_store"]
+    with store.connection() as db:
+        jobs = db.execute("SELECT * FROM jobs").fetchall()
+        assert len(jobs) == 1
+        assert jobs[0]["state"] == "queued"
+        # Cover the frozen maximum tokens and retries for each model step.
+        assert jobs[0]["allocated"] == (8000 if critic else 4000)
+
+
+@pytest.mark.parametrize(
+    "hosted",
+    [
+        {
+            "BUDGETS_ENABLED": False,
+            "RUN_BUDGET_USD": "0",
+            "USER_BUDGET_USD": "0",
+            "TOTAL_BUDGET_USD": "0",
+        }
+    ],
+    indirect=True,
+)
+def test_provider_funded_retry_preserves_old_charges_and_frozen_inputs(
+    owner, pending, fake_sdk, hosted
+):
+    url, directory, project_id = pending
+    frozen_manifest = (directory / "input_manifest.json").read_bytes()
+    store = hosted[0].extensions["web_store"]
+    assert submit(owner, url, {"authorize": "yes"}).status_code == 302
+    interrupted = store.claim_job()
+    store.interrupt_running()
+    # A retained allocation from a deployment that enforced the former $0.50 cap.
+    with store.connection(write=True) as db:
+        db.execute(
+            "UPDATE spending SET charged=500000 WHERE project_id=?", (project_id,)
+        )
+    assert not worker.work_once(store)
+    assert fake_sdk.responses.calls == 0
+    page = owner.get(url).get_data(as_text=True)
+    assert "Status: <strong>interrupted</strong>" in page
+    assert "This run's recorded estimate: $0.5" in page
+    assert "Authorize a paid retry" in page
+    assert "Run AI analysis</button>" in page
+    assert "allowance is exhausted" not in page
+    assert submit(owner, url, {"retry_failed": "yes"}).status_code == 400
+    assert submit(owner, url, {"authorize": "yes"}).status_code == 400
+    assert (
+        submit(owner, url, {"authorize": "yes", "retry_failed": "yes"}).status_code
+        == 302
+    )
+    assert worker.work_once(store)
+    assert fake_sdk.responses.calls == 1
+    assert b"Compare interpretations" in owner.get(url).data
+    assert (directory / "input_manifest.json").read_bytes() == frozen_manifest
+    with store.connection() as db:
+        assert db.execute("SELECT COUNT(*) FROM jobs").fetchone()[0] == 2
+        assert (
+            db.execute(
+                "SELECT state FROM jobs WHERE id=?", (interrupted["id"],)
+            ).fetchone()[0]
+            == "interrupted"
+        )
+        assert (
+            db.execute(
+                "SELECT charged FROM spending WHERE project_id=?", (project_id,)
+            ).fetchone()[0]
+            == 502200
+        )
+
+
+@pytest.mark.parametrize(
+    "hosted", [{"BUDGETS_ENABLED": False, "LIVE_ENABLED": False}], indirect=True
+)
+def test_disabled_caps_do_not_enable_live_calls(owner, pending, hosted):
+    url, _, _ = pending
+    assert submit(owner, url, {"authorize": "yes"}).status_code == 403
+    assert b"Live AI calls are disabled" in owner.get(url).data
+    with hosted[0].extensions["web_store"].connection() as db:
+        assert db.execute("SELECT COUNT(*) FROM jobs").fetchone()[0] == 0
 
 
 def test_atomic_deployment_cap_and_duplicate_queue_requests(tmp_path):
