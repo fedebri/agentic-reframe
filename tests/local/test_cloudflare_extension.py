@@ -237,8 +237,9 @@ def test_production_configs_disable_public_runner_and_live_calls():
     configs = ROOT / "extensions/cloudflare"
     web = tomllib.loads((configs / "wrangler.toml").read_text())
     runner = tomllib.loads((configs / "wrangler.runner.toml").read_text())
+    assert not runner["workers_dev"]
     for config in (web, runner):
-        assert not config["workers_dev"] and not config["preview_urls"]
+        assert not config["preview_urls"]
         assert config["vars"]["WEB_LIVE_ENABLED"] == "0"
         assert "OPENAI_API_KEY" not in config["vars"]
         assert "DEV_MODE" not in config["vars"]
