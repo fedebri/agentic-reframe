@@ -17,6 +17,14 @@ type = "Data"
 globs = ["**/*.woff2"]
 fallthrough = true
 
+[[durable_objects.bindings]]
+name = "ANALYSIS"
+class_name = "AnalysisRunner"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["AnalysisRunner"]
+
 [[r2_buckets]]
 binding = "RESEARCH"
 bucket_name = "agentic-reframe-private"

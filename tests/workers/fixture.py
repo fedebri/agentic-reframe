@@ -6,7 +6,10 @@ import json
 import time
 
 import workers
-from workers import Response, WorkerEntrypoint, wsgi
+from workers import Response
+
+from extensions.cloudflare.runner import AnalysisRunner as _AnalysisRunner
+from extensions.cloudflare.runner import Default as _Default
 
 identity_keys = None
 identity_fetches = 0
@@ -109,8 +112,16 @@ async def fictional_provider(url, **options):
     )
 
 
-class Default(WorkerEntrypoint):
-    """Run the production runner with only its provider boundary replaced."""
+class AnalysisRunner(_AnalysisRunner):
+    """Use the production Durable Object with only its provider boundary replaced."""
+
+    async def fetch(self, request):
+        workers.fetch = fictional_provider
+        return await super().fetch(request)
+
+
+class Default(_Default):
+    """Forward analysis exactly as production; retain the local identity probe."""
 
     async def fetch(self, request):
         if request.url.endswith("/identity-probe"):
@@ -158,7 +169,4 @@ class Default(WorkerEntrypoint):
                     }
                 )
             raise AssertionError("An invalid Access audience was accepted.")
-        from extensions.cloudflare.runner import app
-
-        workers.fetch = fictional_provider
-        return await wsgi.fetch(app, request, self.env)
+        return await super().fetch(request)

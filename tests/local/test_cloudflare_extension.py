@@ -375,6 +375,13 @@ def test_production_configs_enable_provider_funded_calls_and_keep_runner_private
 
     AccessIdentity(web["vars"]["WEB_ACCESS_TEAM_DOMAIN"], web["vars"]["WEB_ACCESS_AUD"])
     assert not runner["workers_dev"]
+    assert "limits" not in runner
+    assert runner["durable_objects"]["bindings"] == [
+        {"name": "ANALYSIS", "class_name": "AnalysisRunner"}
+    ]
+    assert runner["migrations"] == [
+        {"tag": "v1", "new_sqlite_classes": ["AnalysisRunner"]}
+    ]
     for config in (web, runner):
         assert config["observability"]["enabled"]
         assert not config["preview_urls"]
@@ -395,3 +402,13 @@ def test_production_configs_enable_provider_funded_calls_and_keep_runner_private
     assert local["WEB_LIVE_ENABLED"] == "0"
     assert local["WEB_BUDGETS_ENABLED"] == "1"
     assert local["WEB_RUN_BUDGET_USD"] == "0"
+
+
+def test_fixture_uses_the_production_runner_host_contract():
+    import tomllib
+
+    configs = ROOT / "extensions/cloudflare"
+    runner = tomllib.loads((configs / "wrangler.runner.toml").read_text())
+    fixture = tomllib.loads((configs / "wrangler.fixture.toml").read_text())
+    for key in ("durable_objects", "migrations"):
+        assert fixture[key] == runner[key]

@@ -15,7 +15,8 @@ checks and deployment gates.
 | --- | --- |
 | Public Python Worker | Serve the existing Flask website and verify Access identities |
 | One Durable Object (`Cohort`) | Serialize short changes, commit snapshots, record spending estimates, wake queued jobs |
-| Private Python runner Worker | Execute the unchanged analyst/critic workflow outside browser requests |
+| Private Python runner Worker | Forward service requests to the analysis object |
+| Separate Durable Object (`AnalysisRunner`) | Import the SDK and execute the unchanged analyst/critic workflow |
 | Private R2 bucket | Preserve immutable snapshots and analysis artifacts |
 | Cloudflare Access | Invite testers using their email identities |
 
@@ -29,6 +30,16 @@ The job alarm commits its claim before contacting the private runner. During the
 call, other testers can browse and save drafts. The runner returns only artifacts
 from the claimed run; it cannot merge a ledger or replace newer drafts. The normal
 human review remains the only route to applying claims.
+
+The runner Worker forwards to one SQLite-backed `AnalysisRunner` object. The
+object uses the default Durable Object CPU allowance; no paid-plan CPU override
+is configured. Its durable job markers prevent repeating an uncertain dispatch,
+and confirmed replies are cached for duplicate requests. A local asynchronous
+lock serializes scratch-file use without holding `blockConcurrencyWhile` across
+model calls. Only the coordinator's explicit retry creates a new job ID.
+
+For an existing deployment, follow the focused
+[Durable Object runner update steps](FREE_PLAN_UPDATE.md).
 
 This is a **small-cohort pilot**, with one analysis running at a time and a **12 MiB
 uncompressed working-data limit across the cohort**. Each operation restores and
@@ -116,17 +127,20 @@ uv run python smoke.py --analysis
 ```
 
 The script submits a fictional review **only to its loopback test project**. It
-checks the native alarm, service binding, real SDK with the provider stub, critic,
-concurrent draft save and applied review. Restart the website and run `--resume`
-again to verify that the completed results also persist. Never deploy the fixture
-configuration or point this script at a real cohort.
+checks the native alarm, service binding, analysis Durable Object, real SDK with
+the provider stub, critic, concurrent draft save and applied review. Restart the
+website and run `--resume` again to verify that the completed results also persist.
+Never deploy the fixture configuration or point this script at a real cohort.
 
 ## 4. Prepare Cloudflare
 
 In the Cloudflare dashboard:
 
-1. Choose the account that owns your website's domain. Use a Workers Paid plan for
-   this Python pilot; CPU/memory and R2/DO usage still need monitoring.
+1. Choose the account that owns your website's domain. The runner uses a
+   SQLite-backed Durable Object, which is available on Workers Free. CPU/memory
+   and R2/DO quotas still need monitoring; deployed Free-plan capacity must be
+   checked with representative inputs. See
+   [Durable Object limits](https://developers.cloudflare.com/durable-objects/platform/limits/).
 2. Enable R2 and create a bucket named `agentic-reframe-private`. Leave public access
    and `r2.dev` disabled. Both production configurations bind this bucket.
 3. Choose a separate hostname, for example `research.your-domain.com`.
@@ -391,6 +405,54 @@ exception type for new failed calls and displays **interrupted** rather than
 the unchanged **prepared** artifact status. Existing saved error messages remain.
 Disabling application caps does not diagnose or repair the runner interruption.
 Use these logs if the next authorized attempt also stops.
+
+### Runner CPU limit during SDK import
+
+The supplied production traces for 2026-10-21 show
+`introspection.CpuLimitExceeded: Python Worker exceeded CPU time limit`
+while `/execute` imports `extensions.web.worker` and the OpenAI SDK. The two
+invocations consumed 1,997 and 2,040 ms of CPU time before stopping. They failed
+before the route reached any provider request; the website then reported the
+cancelled service-binding request as `AbortError`. The accompanying ZIP
+deallocator errors appear to be cleanup errors from the same interruption.
+
+The runner now executes `/execute` in the separate SQLite-backed
+`AnalysisRunner` Durable Object. The regular Worker only forwards requests and
+does not import the SDK during that handler. `wrangler.runner.toml` registers
+the object using an `ANALYSIS` binding and a `v1` `new_sqlite_classes` migration;
+the earlier paid-plan `[limits] cpu_ms` override has been removed.
+
+The default Durable Object CPU allowance is 30 seconds. CPU time is separate
+from the model's network timeout; waiting for the provider does not consume CPU
+allowance, but does count toward Durable Object duration usage. See
+[Durable Object limits](https://developers.cloudflare.com/durable-objects/platform/limits/)
+and [free allowances](https://developers.cloudflare.com/durable-objects/platform/pricing/).
+Follow [the existing-deployment update steps](FREE_PLAN_UPDATE.md), then reopen
+the saved interrupted run and explicitly authorize one retry. Preserve the
+existing coordinator and bucket; their data does not require migration.
+
+Ordinary offline tests cover forwarding, concurrent duplicates, cached replies,
+interrupted-job recovery, and the new SQLite migration. The native provider
+fixture uses the same forwarder and analysis object as production. These checks
+do not verify Cloudflare's deployed CPU enforcement or make paid API calls.
+The core engine, model settings, saved manifests, and spending history retain
+their existing contracts.
+
+### Why the SDK is not imported into the deployment snapshot
+
+Cloudflare [snapshots module-level imports during deployment](https://developers.cloudflare.com/workers/languages/python/how-python-workers-work/#deployment-lifecycle-and-cold-start-optimizations).
+An import in the GitHub build process alone does not populate that snapshot.
+However, the pinned `openai==2.54.0` imports its Bedrock integration, which calls
+`os.urandom(32)` at module level. An isolated native Wrangler 4.151.3 probe
+reproduced a startup failure: `Randomness is not allowed while a Worker is starting`.
+The probe used no API key and made no provider calls.
+
+Keep the SDK import inside execution for this version. Python caches a successful
+import within the Worker instance, so the import cost is paid on its first use.
+Moving it into the snapshot requires an SDK change that defers the import-time
+random key initialization. API clients and credentials should still be created
+during request execution. Do not replace secure randomness with fixed values to
+make snapshot creation succeed.
 
 ## Operations and current boundaries
 

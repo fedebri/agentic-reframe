@@ -1,11 +1,14 @@
-"""Private service-bound Worker for paid analysis; no public routes are configured."""
+"""Private forwarder and Durable Object for authorized research analysis."""
 
+import asyncio
 import hashlib
 import json
 import logging
+from urllib.parse import urlsplit
 
 from flask import Flask, Response, abort, request
-from workers import wsgi
+from workers import DurableObject, WorkerEntrypoint, wsgi
+from workers import Response as WorkerResponse
 
 from agentic_dt.schemas import RunManifest
 from extensions.cloudflare.runtime import DATA_ROOT, api_client, stage_resources
@@ -25,8 +28,6 @@ logger.setLevel(logging.INFO)
 def execute():
     """Execute exactly the job claimed in an immutable coordinator snapshot."""
     from pyodide.ffi import run_sync
-
-    from extensions.web.worker import work_once
 
     env = request.environ["workers.env"]
     key = getattr(env, "OPENAI_API_KEY", "")
@@ -54,6 +55,9 @@ def execute():
     elif not key:
         store.finish_job(job, 0, "Set OPENAI_API_KEY on the private runner.")
     else:
+        logger.info("Runner job %s: loading analysis runtime", job["id"])
+        from extensions.web.worker import work_once
+
         logger.info("Runner job %s: initializing API client", job["id"])
         manifest = RunManifest.model_validate_json(
             DATA_ROOT.joinpath(
@@ -92,4 +96,50 @@ def execute():
     )
 
 
-Default = wsgi.entrypoint(app)
+class AnalysisRunner(DurableObject):
+    """Run the Python workflow under the Durable Object CPU allowance."""
+
+    def __init__(self, ctx, env):
+        super().__init__(ctx, env)
+        # Serialize scratch-file use without blockConcurrencyWhile's wall timeout.
+        self._lock = asyncio.Lock()
+
+    async def fetch(self, request):
+        """Persist dispatch before execution; never repeat an uncertain job."""
+        async with self._lock:
+            if request.method != "POST" or urlsplit(request.url).path != "/execute":
+                return await wsgi.fetch(app, request, self.env)
+            payload = await request.clone().json()
+            key = f"job:{payload['job_id']}"
+            previous = await self.ctx.storage.get(key)
+            if previous == "started":
+                return WorkerResponse(
+                    "This job was already dispatched without a confirmed result. "
+                    "Authorize a new retry from the saved run page.",
+                    status=409,
+                )
+            if previous is not None:
+                return WorkerResponse(
+                    previous, headers={"Content-Type": "application/json"}
+                )
+            await self.ctx.storage.put(key, "started")
+            logging.basicConfig(level=logging.INFO)
+            logger.info(
+                "AnalysisRunner job %s: executing in Durable Object", payload["job_id"]
+            )
+            response = await wsgi.fetch(app, request, self.env)
+            # Finish WSGI iterators while this request owns the scratch files.
+            body = await response.text()
+            if response.status == 200:
+                await self.ctx.storage.put(key, body)
+            return WorkerResponse(
+                body, status=response.status, headers=list(response.headers)
+            )
+
+
+class Default(WorkerEntrypoint):
+    """Keep the regular Worker limited to forwarding private service requests."""
+
+    async def fetch(self, request):
+        runner_id = self.env.ANALYSIS.idFromName("analysis-v1")
+        return await self.env.ANALYSIS.get(runner_id).fetch(request)
