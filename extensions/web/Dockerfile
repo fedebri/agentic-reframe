@@ -1,6 +1,6 @@
 FROM python:3.12-slim
 WORKDIR /app
-COPY pyproject.toml ./
+COPY pyproject.toml LICENSE.md ./
 COPY agentic_dt/ ./agentic_dt/
 COPY agents/*.md ./agents/
 COPY exercises/*.md ./exercises/

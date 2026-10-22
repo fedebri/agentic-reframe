@@ -80,6 +80,9 @@ exercises/*.pdf
 /docs/user_input/
 /docs/process_templates/generated/
 
+# Cloudflare local runtime state
+/.wrangler/
+
 # Internal development notes and planning
 /docs/development_plan.md
 /docs/test_readiness_review.md

@@ -13,7 +13,7 @@ from external sources before ideation begins.
 ## Inputs
 
 - Brief and supporting documents
-- User-supplied research notes in `human_input/secondary_research/`
+- Explicitly assigned research notes with source attribution
 - Prior graph claims that require external validation
 
 ## Procedure

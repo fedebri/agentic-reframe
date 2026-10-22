@@ -14,7 +14,7 @@ attention, trust, data, and other scarce resources.
 ## Inputs
 
 - Stakeholder map
-- Human-input resource-flow maps in `human_input/resource_flow/`
+- Explicitly assigned text descriptions of participant resource-flow maps
 - Interview notes, field observations, or brief evidence about resource use
 
 ## Procedure

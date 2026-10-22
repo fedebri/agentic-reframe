@@ -110,6 +110,9 @@ def test_run_merge_preserves_drafts_ledger_and_frozen_artifacts(tmp_path):
 def test_build_contains_only_source_and_neutral_scaffold(tmp_path):
     destination = tmp_path / "bundle"
     build(destination)
+    assert (destination / "LICENSE.md").read_bytes() == (
+        ROOT / "LICENSE.md"
+    ).read_bytes()
     assert "Deployment scaffold" in (destination / "docs/brief.md").read_text()
     assert not (destination / "tests/workers/fixture.py").exists()
     assert not (destination / "extensions/web/templates/example.html").exists()

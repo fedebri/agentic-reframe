@@ -14,7 +14,7 @@ but broad enough to avoid smuggling in a solution.
 ## Inputs
 
 - `docs/brief.md`
-- Supporting documents assigned by the orchestrator
+- Explicitly assigned supporting text documents
 - Prior graph claims, if this exercise is rerun
 
 ## Procedure

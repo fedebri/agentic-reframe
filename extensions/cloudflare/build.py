@@ -11,6 +11,7 @@ HERE = Path(__file__).resolve().parent
 def build(destination: Path = HERE / "dist", *, fixture: bool = False) -> None:
     """Copy source and public resources; no real brief, evidence, runs, or secrets."""
     sources = [
+        ROOT / "LICENSE.md",
         *ROOT.joinpath("agentic_dt").glob("*.py"),
         *ROOT.joinpath("extensions/web").glob("*.py"),
         ROOT / "extensions/web/schema.sql",

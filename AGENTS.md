@@ -10,14 +10,17 @@ structured challenge, while teaching the fundamental agentic building blocks.
 
 ## Repository Contract
 
-- Treat `docs/brief.md` as the primary challenge input.
-- Treat Markdown files under `exercises/` as the canonical ordered exercise
+- Treat `docs/brief.md` as the CLI's primary challenge input. Web projects use
+  their explicitly supplied private briefs.
+- Treat numbered Markdown files under `exercises/` as the canonical ordered exercise
   definitions. The numeric prefix controls execution order, but each exercise
   must be analyzed as an independent action before synthesis.
 - Treat HTML and PDF files under `exercises/` as optional local source
   material. They are ignored by Git and must not be required by the runtime.
-- Assign human evidence explicitly on the command line. Never scan evidence
-  directories or invent missing field data.
+- Assign human evidence explicitly per run through CLI `--evidence` arguments or
+  web selections. The runtime reads UTF-8 text snapshots; photos require
+  human-authored captions or observations. Never scan evidence directories or
+  invent missing field data.
 - Treat `outputs/v2/ledger/events.jsonl` as append-only provenance storage. Never rewrite or
   delete claims, evidence, or conflict history.
 - Keep ideation and prototyping out of scope. The system may prepare inputs for
@@ -68,8 +71,9 @@ analyst and critic profiles in `agents/`, and the repo-local skill in
 
 ## Tests and Model Changes
 
-- Keep core code in `agentic_dt/`; keep offline unit/integration tests in
-  `tests/local/` and real service tests in `tests/live/`.
+- Keep core code in `agentic_dt/` and optional host adapters in `extensions/`;
+  keep offline unit/integration tests in `tests/local/` and real service tests in
+  `tests/live/`.
 - Ordinary `pytest` must stay offline, even when credentials are present. Live
   tests require `--run-live`, `--live-budget-usd`, and `OPENAI_API_KEY`.
 - Live tests use explicitly fictional inputs, isolated output/ledger paths, and

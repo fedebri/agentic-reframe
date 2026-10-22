@@ -18,6 +18,10 @@
 
 ## Shared Rules
 
+- Procedures include human fieldwork. The model analyzes only explicitly
+  assigned UTF-8 text snapshots and reviewed claims; it does not browse,
+  inspect images, scan folders, or conduct interviews. Supply captions and
+  observations as text for photo-based work.
 - Run each exercise as an independent action before synthesis.
 - Record observations, inferences, assumptions, and hypotheses separately.
 - Attach every takeaway to evidence, agent ID, exercise ID, confidence, and

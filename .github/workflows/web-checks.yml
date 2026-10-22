@@ -49,5 +49,6 @@ jobs:
           assert not Path('/app/extensions/web/deployment.env').exists();
           assert not Path('/app/extensions/web/.data/private-test.txt').exists();
           assert not Path('/app/.git').exists();
+          assert Path('/app/LICENSE.md').is_file();
           assert Path('/app/docs/brief.md').read_text().startswith('Deployment scaffold.');
           assert create_app().test_client().get('/health').status_code == 200"

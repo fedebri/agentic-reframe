@@ -7,13 +7,14 @@ Adapted for this agentic workflow from the IDEO.org Design Kit method
 
 ## Purpose
 
-Use photo-based evidence to understand context, environment, routines, tools,
-constraints, and lived experience. If photos are absent, generate a photojournal
+Use human-authored captions and observations about photos to understand context,
+environment, routines, tools, constraints, and lived experience. The runtime
+does not inspect images. If descriptive evidence is absent, propose a photojournal
 prompt for human evidence collection.
 
 ## Inputs
 
-- Photos, captions, or field notes in `human_input/photos/`
+- Explicitly assigned text captions or field notes identifying the original photos
 - Interview or observation notes
 - Stakeholder and audience hypotheses
 
@@ -32,8 +33,8 @@ prompt for human evidence collection.
 
 ## Tasks
 
-1. Build a manifest of available photo evidence.
-2. Extract observable details without over-interpreting the image.
+1. Identify the photos and provenance described in the assigned text evidence.
+2. Extract human-recorded observations without claiming to inspect the images.
 3. Link visible context to tasks, pains, gains, constraints, or resource flows.
 4. Mark uncertain interpretations as hypotheses.
 5. Generate a photojournal collection template if no photo evidence exists.
@@ -47,5 +48,6 @@ prompt for human evidence collection.
 
 ## Provenance Requirements
 
-Every photo-derived claim must cite the photo file and caption or note source.
-Do not infer identity, intent, emotion, or causality from a photo alone.
+Every photo-derived claim must cite an assigned caption or note source that
+identifies the original photo. Do not infer identity, intent, emotion, or
+causality from a photo description alone.

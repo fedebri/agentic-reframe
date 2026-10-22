@@ -38,8 +38,11 @@ the software cannot verify whether a person actually worked independently.
 ```
 
 Preview is the default. It writes a frozen input manifest and analyst request but
-makes no model call. Add explicitly selected text evidence with repeated
-`--evidence PATH` options. Assign reviewed prior context only when needed with
+makes no model call. Add explicitly selected UTF-8 text evidence with repeated
+`--evidence PATH` options. Images and PDFs are not read directly; supply human
+captions, observations, or extracted text. The optional
+[fieldwork worksheets](process_templates/hitl_templates.md) support manual
+collection. Assign reviewed prior context only when needed with
 repeated `--context-claim CLAIM_ID` options.
 Sources supporting selected prior claims are included for auditability. Rejected,
 contested, invalidated, deprecated, and dependency-blocked context is excluded.

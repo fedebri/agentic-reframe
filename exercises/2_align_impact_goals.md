@@ -47,5 +47,5 @@ learning goals from longer-term impact goals.
 ## Provenance Requirements
 
 Record each goal as a claim with evidence source, stakeholder perspective,
-confidence, and validation status. Connect goal conflicts with `contradicts` or
-`accepted_tension` edges.
+confidence, and validation status. Human review can connect goal conflicts with
+`contradicts` edges and assign the `accepted_tension` evidence status.

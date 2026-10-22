@@ -4,8 +4,9 @@ This is a separate host adapter for the existing research website and Python
 engine. It runs entirely on Cloudflare: no Docker server, Tunnel connector, or
 always-on personal computer. The local/Docker host in `extensions/web/` still works.
 
-The pilot is implemented and tested locally. The first hosted build has uploaded
-successfully; authenticated production use still needs verification. See
+The pilot is implemented with offline and documented native-runtime checks.
+Hosted deployment and runner failures have been reported; complete production
+acceptance still needs verification. See
 [verification and next development work](DEVELOPMENT_STATUS.md) for the completed
 checks and deployment gates.
 
@@ -58,14 +59,14 @@ and individual artifacts to a more granular storage design.
 
 ## 1. Install local development tools
 
-These commands run in **Terminal on your Mac**, only while developing/deploying.
+These commands run in a terminal at the repository root, while developing/deploying.
 Cloudflare keeps the deployed application running after your Mac is turned off.
 
 Install [Node.js 22 or later](https://nodejs.org/en/download) and
 [uv](https://docs.astral.sh/uv/getting-started/installation/) if needed. Then:
 
 ```sh
-cd /Users/f1/Documents/github_repos/agentic_dt/extensions/cloudflare
+cd extensions/cloudflare
 npm ci
 uv sync --locked
 uv run python build.py
@@ -355,8 +356,7 @@ Keep secrets on their respective Workers. Validate manual deployment first. When
 change updates the runner protocol, deploy the runner before updating the website;
 independent automatic builds do not guarantee that order. Keep automatic deployment
 disabled for branches used for fixture tests.
-The supplied hosted log confirms that the earlier build/deploy command completed.
-The optimized build variables still need applying and timing on your account.
+Verify the build variables and timing in each Worker's current Build settings.
 Enabling build caching alone is not the primary fix: Cloudflare currently documents
 automatic dependency caching for Node package managers, and this monorepo keeps
 `package.json` under the extension rather than the build root. Do not assume it

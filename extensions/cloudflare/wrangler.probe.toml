@@ -1,5 +1,0 @@
-name = "agentic-reframe-probe"
-main = "probe.py"
-compatibility_date = "2026-10-01"
-compatibility_flags = ["python_workers"]
-workers_dev = false

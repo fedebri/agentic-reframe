@@ -1,7 +1,9 @@
 # Human-in-the-Loop Templates
 
-Use these templates when `config/project.yaml` is in `auto_detect` mode and the
-corresponding human evidence folder is empty.
+Use these optional worksheets to collect missing field evidence. Complete them
+with actual participant accounts or observations, save the notes as UTF-8 text,
+and explicitly assign them to a run with `--evidence PATH` or a web upload and
+selection. The runtime does not detect evidence folders or collect field data.
 
 ## General Interview
 

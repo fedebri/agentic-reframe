@@ -52,4 +52,5 @@ and where participation, consent, representation, or power risks need attention.
 ## Provenance Requirements
 
 Create graph claims for participant roles, engagement assumptions, and power or
-consent risks. Link template requests to missing-evidence events.
+consent risks. Record missing evidence and template requests as open questions
+for human investigation; there is no missing-evidence ledger event.

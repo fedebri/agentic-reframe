@@ -1,5 +1,6 @@
 **
 !pyproject.toml
+!LICENSE.md
 !agentic_dt/
 !agentic_dt/**
 !agents/

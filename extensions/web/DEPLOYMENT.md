@@ -190,9 +190,11 @@ support messages. Treat the connector's startup output as private.
    `/extensions/web/deployment.env` return no file contents after sign-in.
 
 Keep Cloudflare caching disabled for the authenticated application; the app sends
-`Cache-Control: no-store`. Sign-in alone does not make drafts permanent: testers
-must choose Save draft before leaving a page. Conflicting saves from two devices
-return a conflict with the submitted text retained for recovery.
+`Cache-Control: no-store`. Exercise changes, page links, project switching, and
+uploads save changed drafts before navigation when JavaScript is enabled.
+**Save draft** remains available; use it before refreshing or closing the page,
+and when JavaScript is disabled. Conflicting saves from two devices return a
+conflict with the submitted text retained for recovery.
 
 ## 9. Enable model calls deliberately
 
@@ -249,9 +251,8 @@ their historical manifests or silently changing their saved paths.
 
 ## Design reference and verification scope
 
-The limited visual changes follow the Derver website reference at
-`website/docs/DESIGN_GUIDELINES.md`: Arizona Sans, a light blue wordmark,
-decorative dot, open spacing, text navigation, and fine rules. Dense research
+The website uses Arizona Sans, a light blue wordmark, a decorative dot, open
+spacing, text navigation, and fine rules. Dense research
 forms use a white canvas and dark text rather than reproducing the portfolio's
 full blue composition. There are no cards, shadows, animations, or frontend build.
 
