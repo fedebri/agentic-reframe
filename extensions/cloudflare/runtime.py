@@ -104,7 +104,8 @@ class WorkersTransport(httpx.BaseTransport):
                     method=request.method,
                     headers=dict(request.headers),
                     body=request.content,
-                    redirect="error",
+                    # Workers supports manual/follow, not Fetch's error mode.
+                    redirect="manual",
                     signal=AbortSignal.timeout(int(timeout * 1000)),
                 )
             )

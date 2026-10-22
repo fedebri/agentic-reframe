@@ -412,3 +412,54 @@ def test_fixture_uses_the_production_runner_host_contract():
     fixture = tomllib.loads((configs / "wrangler.fixture.toml").read_text())
     for key in ("durable_objects", "migrations"):
         assert fixture[key] == runner[key]
+
+
+@pytest.mark.parametrize("status", [200, 302, 401])
+def test_api_transport_uses_supported_fetch_mode_without_following_redirects(
+    monkeypatch, status
+):
+    import httpx
+
+    from extensions.cloudflare.runtime import WorkersTransport
+
+    calls = []
+    body = b'{"fictional": true}'
+
+    async def read_body():
+        return body
+
+    async def fetch(url, **options):
+        # Workers rejects redirect="error" before contacting the API.
+        assert options["redirect"] in {"follow", "manual"}
+        calls.append((url, options))
+        return types.SimpleNamespace(
+            status=status,
+            headers={
+                "content-type": "application/json",
+                "location": "https://fictional.example.test/do-not-follow",
+            },
+            bytes=read_body,
+        )
+
+    monkeypatch.setitem(sys.modules, "workers", types.SimpleNamespace(fetch=fetch))
+    monkeypatch.setitem(
+        sys.modules,
+        "js",
+        types.SimpleNamespace(AbortSignal=types.SimpleNamespace(timeout=int)),
+    )
+    monkeypatch.setitem(
+        sys.modules, "pyodide.ffi", types.SimpleNamespace(run_sync=asyncio.run)
+    )
+    url = "https://api.openai.com/v1/responses/input_tokens"
+    with httpx.Client(transport=WorkersTransport(), timeout=7) as client:
+        response = client.post(
+            url,
+            headers={"Authorization": "Bearer FICTIONAL-KEY"},
+            json={"input": "FICTIONAL request"},
+        )
+    assert response.status_code == status
+    assert response.content == body
+    assert len(calls) == 1
+    assert calls[0][0] == url
+    assert calls[0][1]["redirect"] == "manual"
+    assert calls[0][1]["signal"] == 7000

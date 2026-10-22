@@ -6,7 +6,7 @@ import json
 import time
 
 import workers
-from workers import Response
+from workers import Request, Response
 
 from extensions.cloudflare.runner import AnalysisRunner as _AnalysisRunner
 from extensions.cloudflare.runner import Default as _Default
@@ -18,6 +18,8 @@ attempts = {}
 
 async def fictional_provider(url, **options):
     """Intercept every outbound fetch; no external network is allowed in this runner."""
+    # Exercise native Fetch option validation before replacing the network.
+    Request(str(url), **options)
     if str(url) == "https://fictional.cloudflareaccess.com/cdn-cgi/access/certs":
         global identity_fetches
         identity_fetches += 1

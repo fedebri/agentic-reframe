@@ -438,6 +438,28 @@ do not verify Cloudflare's deployed CPU enforcement or make paid API calls.
 The core engine, model settings, saved manifests, and spending history retain
 their existing contracts.
 
+### APIConnectionError after successful Durable Object dispatch
+
+The 2026-10-22 trace reached `AnalysisRunner`, used 5,122 ms of CPU, and saved a
+failed-job artifact with `APIConnectionError`. The Durable Object CPU adjustment
+was active; HTTP 200 for `/execute` means the job outcome was saved, not that the
+model returned an analysis.
+
+The HTTP adapter previously passed `redirect="error"` to Fetch. A native Wrangler
+probe reproduced `TypeError: Invalid redirect value` before contacting OpenAI.
+Workers supports only `follow` and `manual`; the adapter now uses `manual` to
+return redirects without following them. See
+[Request redirect modes](https://developers.cloudflare.com/workers/runtime-apis/request/).
+The local provider fixture now constructs a native Request before stubbing the
+network, so it also validates those Fetch options.
+
+Push this fix and redeploy `agentic-reframe-runner` with the existing build and
+deploy commands, then explicitly authorize one retry from the saved run page.
+No binding, secret, migration tag or CPU setting needs changing for this fix.
+The trace's `INFO:runner:...` lines are informational messages written to stderr
+and consequently labelled `error` by Cloudflare. The ignored ZIP deallocator
+exception is separate from the connection failure; execution continued past it.
+
 ### Why the SDK is not imported into the deployment snapshot
 
 Cloudflare [snapshots module-level imports during deployment](https://developers.cloudflare.com/workers/languages/python/how-python-workers-work/#deployment-lifecycle-and-cold-start-optimizations).
