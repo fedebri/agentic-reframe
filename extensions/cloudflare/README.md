@@ -1,8 +1,8 @@
 # Cloudflare Workers deployment
 
 This is a separate host adapter for the existing research website and Python
-engine. It runs entirely on Cloudflare: no Docker server, Tunnel connector, or
-always-on personal computer. The local/Docker host in `extensions/web/` still works.
+engine. It runs entirely on Cloudflare, without an always-on personal computer.
+The [local website preview](../web/README.md) remains available in `extensions/web/`.
 
 The pilot is implemented with offline and documented native-runtime checks.
 Hosted deployment and runner failures have been reported; complete production
@@ -493,7 +493,7 @@ make snapshot creation succeed.
 - Do not rename the `Cohort` class, `cohort-v1` object name, Worker/bucket bindings,
   or `/tmp/agentic-reframe` paths without a migration. Frozen artifacts refer to
   stable virtual paths. Never rewrite old manifests or ledgers to make a resume fit.
-- This host starts a new cohort. Existing local/Docker projects stay where they are;
+- This host starts a new cohort. Existing local projects stay where they are;
   moving their absolute-path manifests requires a separate explicit migration.
 - Keep production access checks enabled on every application path. Only `/health`
   exposes a public status response. Do not share raw R2 snapshot URLs or credentials.

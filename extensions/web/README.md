@@ -18,9 +18,8 @@ secondary actions under expandable sections. Dense forms retain a white canvas
 and dark text.
 
 For a deployment entirely on Cloudflare, use the separate
-[Workers adapter and setup guide](../cloudflare/README.md). For an always-on Docker
-host behind Cloudflare Access/Tunnel, follow [the Docker deployment guide](DEPLOYMENT.md).
-Both use this same repository and the same website/core contracts. A static
+[Workers adapter and setup guide](../cloudflare/README.md). It reuses this same
+website and core contracts; the local preview remains available below. A static
 Cloudflare Pages upload alone cannot run the research workflow.
 
 ## Run locally
@@ -187,11 +186,10 @@ filenames sanitized, forms CSRF-protected, and source text HTML-escaped.
 
 ## GitHub and Cloudflare
 
-Use [DEPLOYMENT.md](DEPLOYMENT.md) to configure Access, email invitations, the
-application AUD, a remotely managed tunnel, private settings, persistent storage,
-and all three services. Compose keeps the web origin off published host ports and
-passes the API key only to the worker. The GitHub workflow validates code and
-build boundaries; it does not automatically deploy or require Cloudflare secrets.
+Use the [Workers deployment guide](../cloudflare/README.md) for the hosted setup,
+Access configuration, private storage, and analysis runner. The GitHub workflow
+runs offline checks and builds the Workers bundle; it does not automatically
+deploy or require Cloudflare secrets.
 
 ## Optional live calls
 
@@ -266,5 +264,6 @@ applies. No live test or paid call is needed.
 This is an invited-test application on one persistent host, with text inputs,
 independent project ownership, saved drafts, and one durable worker. It does not
 provide collaborative editing, multi-host storage, or a web correction/relation
-editor. The original CLI retains the full correction workflow. Container startup,
-live Access sign-in, and the public route need verification on the chosen host.
+editor. The original CLI retains the full correction workflow. Hosted Access
+sign-in and public-route verification belong to the separate
+[Cloudflare adapter](../cloudflare/DEVELOPMENT_STATUS.md).

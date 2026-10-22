@@ -787,20 +787,6 @@ def test_queue_survives_metadata_reopening_and_keeps_pending_quota(
         assert job["allocated"] == 10000
 
 
-def test_compose_keeps_secrets_and_origin_private():
-    definition = web.yaml.safe_load(
-        (web.ROOT / "extensions/web/compose.yaml").read_text()
-    )
-    services = definition["services"]
-    assert set(services) == {"web", "worker", "cloudflared"}
-    assert "ports" not in services["web"]
-    assert "OPENAI_API_KEY" not in services["web"]["environment"]
-    assert "OPENAI_API_KEY" in services["worker"]["environment"]
-    assert services["worker"]["volumes"] == services["web"]["volumes"]
-    assert services["web"]["environment"]["WEB_AUTH_MODE"] == "cloudflare"
-    assert services["worker"]["stop_grace_period"] == "10m"
-
-
 def test_database_initializes_across_simultaneous_cold_processes(tmp_path):
     command = [
         sys.executable,

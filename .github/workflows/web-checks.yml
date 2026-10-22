@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   checks:
-    name: Offline tests and container build
+    name: Offline tests and Workers bundle
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -28,27 +28,3 @@ jobs:
           python -m ruff format --check extensions/web extensions/cloudflare tests/workers tests/local/test_web_extension.py tests/local/test_web_deployment.py tests/local/test_cloudflare_extension.py tests/local/test_cloudflare_identity.py tests/local/test_cloudflare_runner.py
           python -m pytest -q
           python -m extensions.cloudflare.build
-      - name: Validate Compose without displaying configuration values
-        env:
-          WEB_SECRET_KEY: fictional-ci-cookie-key
-          WEB_ACCESS_TEAM_DOMAIN: https://fictional.cloudflareaccess.com
-          WEB_ACCESS_AUD: fictional-audience
-          CLOUDFLARE_TUNNEL_TOKEN: fictional-not-a-token
-        run: docker compose -f extensions/web/compose.yaml config --quiet
-      - name: Add fictional publication-boundary sentinels
-        run: |
-          mkdir -p extensions/web/.data
-          printf '%s\n' FICTIONAL_DO_NOT_SHIP > extensions/web/.data/private-test.txt
-          printf '%s\n' FICTIONAL_DO_NOT_SHIP > extensions/web/deployment.env
-      - name: Build the runtime image
-        run: docker build -f extensions/web/Dockerfile -t agentic-reframe-web:ci .
-      - name: Check the image and private-file boundary
-        run: >-
-          docker run --rm --entrypoint python agentic-reframe-web:ci -c
-          "from pathlib import Path; from extensions.web.app import create_app;
-          assert not Path('/app/extensions/web/deployment.env').exists();
-          assert not Path('/app/extensions/web/.data/private-test.txt').exists();
-          assert not Path('/app/.git').exists();
-          assert Path('/app/LICENSE.md').is_file();
-          assert Path('/app/docs/brief.md').read_text().startswith('Deployment scaffold.');
-          assert create_app().test_client().get('/health').status_code == 200"

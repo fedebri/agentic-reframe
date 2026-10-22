@@ -21,8 +21,8 @@ recorded verification; it does not independently verify the live account.
 
 See the [deployment guide](README.md) for setup and configuration. The
 [runner upgrade guide](FREE_PLAN_UPDATE.md) applies to existing deployments that
-need the separate analysis object. The local/Docker host remains supported in
-`extensions/web/`.
+need the separate analysis object. The local website preview remains available
+in `extensions/web/`.
 
 ## Verification evidence
 
