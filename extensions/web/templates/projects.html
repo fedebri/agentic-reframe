@@ -2,9 +2,9 @@
 {% block title %}My projects — Agentic Reframe{% endblock %}
 {% block content %}
 <h2>My projects</h2>
-<p>{% if signed_in %}These projects belong to your sign-in and can be reopened on another machine.{% else %}These local preview projects belong to this browser.{% endif %} Opening one restores its brief, evidence, saved drafts, runs, and review history.</p>
-<p><a href="{{ url_for('restart', blank='1') if project_id else url_for('home') }}">Create a project</a>. Use Open project to continue or return to the current project's exercises.</p>
-<ul>
+<p class="help">{% if signed_in %}Your projects and drafts follow your sign-in across devices.{% else %}Local preview projects belong to this browser.{% endif %}</p>
+<p><a href="{{ url_for('restart', blank='1') if project_id else url_for('home') }}">Create a project</a></p>
+<ul class="project-list">
 {% for item in projects %}
 <li>
   {{ item.name }} ({{ item.id[:8] }})

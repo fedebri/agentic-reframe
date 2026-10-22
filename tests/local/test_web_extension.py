@@ -330,14 +330,14 @@ def test_project_order_keeps_saved_runs_and_export_after_reviewed_findings(
     before = ledger.read_bytes()
     text = browser.get("/project").get_data(as_text=True)
     sections = [
-        "1. Choose an exercise",
-        "2. Add evidence",
-        "Your independent interpretation:",
+        '<h3 id="exercise">Exercise</h3>',
+        "<h3>Add evidence</h3>",
+        "Your independent interpretation</legend>",
         "Evidence for this exercise</legend>",
         "Reviewed findings to include</legend>",
-        "Save interpretation and preview request",
-        "3. Attempts for this exercise",
-        "4. Export reviewed research",
+        "Preview request</button>",
+        "<h3>Attempts</h3>",
+        "<h3>Export reviewed research</h3>",
     ]
     positions = [text.index(section) for section in sections]
     assert positions == sorted(positions)

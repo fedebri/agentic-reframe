@@ -10,9 +10,12 @@ The script also saves changed answers before following page links, uploading
 evidence or switching projects. A conflict or connection failure leaves the
 edits on screen; unexpected refresh/close prompts about unsaved changes.
 **Save draft** remains available explicitly. A small stylesheet keeps text
-boxes within the page width. Light typography, a blue wordmark/dot, open spacing,
-and fine rules borrow a few elements from the Derver website guidelines. Dense
-forms retain a white canvas and dark text.
+boxes within the page width. Arizona Sans, a blue wordmark/dot, open spacing,
+and fine rules follow the Derver website guidelines. Titles, questions and
+secondary guidance use a consistent type hierarchy; selectors and buttons share
+the same font and sizing. Exercise names and navigation help appear once, with
+secondary actions under expandable sections. Dense forms retain a white canvas
+and dark text.
 
 For a deployment entirely on Cloudflare, use the separate
 [Workers adapter and setup guide](../cloudflare/README.md). For an always-on Docker
@@ -54,7 +57,8 @@ and an expandable **All exercises** overview. Each exercise has its own draft,
 evidence/claim selection and numbered attempt history. Moving between exercises
 does not start an analysis or mark an exercise reviewed.
 
-- **Skip for now and continue** saves the draft, records an optional reason and
+- Expand **Skip this exercise**. **Skip for now and continue** saves the draft,
+  records an optional reason and
   opens the next unfinished exercise. **Resume this exercise** reverses the skip.
   An active analysis finishes normally; navigate away rather than skipping it.
 - A saved human review marks coverage as **Reviewed**. The saved run offers
@@ -130,7 +134,8 @@ No core schema, prompt, exercise definition, or historical run is changed.
 
 ## Revise a brief or start over
 
-On the project page, choose **Revise the brief and restart** to open a form
+On the project page, expand **Challenge brief**, then choose
+**Revise the brief and restart** to open a form
 pre-filled with the current name, researcher, and brief. Edit the text or upload
 a replacement brief, then choose **Create fresh project**. **Start a blank
 project** opens the same form with empty fields.

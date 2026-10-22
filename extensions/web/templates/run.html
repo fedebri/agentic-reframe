@@ -2,12 +2,11 @@
 {% block title %}Saved exercise — Agentic Reframe{% endblock %}
 {% block content %}
 <h2>{{ manifest.exercise_id.replace('_', ' ').capitalize() }}</h2>
-<p>Run {{ run_id[:8] }}. Status: <strong>{{ status.state }}</strong>.</p>
-{% include 'exercise_navigation.html' %}
 {% set attempt = runs | selectattr('id', 'equalto', run_id) | first %}
-<p>Attempt {{ attempt.number }} of {{ runs | length }} for this exercise.</p>
+<p class="meta">Run {{ run_id[:8] }}. Status: <strong>{{ status.state }}</strong>. Attempt {{ attempt.number }} of {{ runs | length }}.</p>
+{% include 'exercise_navigation.html' %}
 {% if reviewed %}
-<p><strong>Review saved.</strong> This attempt and its research history are preserved.</p>
+<p><strong>Review saved.</strong></p>
 {% if next_unfinished %}<p><a href="{{ url_for('project', exercise=next_unfinished.id, _anchor='exercise') }}">Continue to the next exercise: {{ next_unfinished.id.replace('_', ' ') }}</a></p>{% else %}<p><a href="{{ url_for('project', exercise=manifest.exercise_id, overview='1', _anchor='exercise-overview') }}">Review exercise coverage</a> — {{ reviewed_count }} reviewed and {{ skipped_count }} skipped.</p>{% endif %}
 <form method="post" action="{{ url_for('redo') }}">
   <input type="hidden" name="csrf" value="{{ csrf }}">
@@ -35,9 +34,9 @@
 <h3>Compare interpretations</h3>
 {% for claim in analysis.claims %}
 <section>
-  <h4>{{ loop.index }}. {{ claim.statement }}</h4>
+  <h4 class="claim-statement">{{ loop.index }}. {{ claim.statement }}</h4>
   <p>{{ claim.public_reasoning_summary }}</p>
-  <p>Claim {{ claim.local_id }}; {{ claim.deliverable.replace('_', ' ') }}; {{ claim.claim_type }}; proposed confidence: {{ claim.confidence }}.</p>
+  <p class="meta">Claim {{ claim.local_id }}; {{ claim.deliverable.replace('_', ' ') }}; {{ claim.claim_type }}; proposed confidence: {{ claim.confidence }}.</p>
   <p>Evidence:
   {% for citation in claim.citations %}<a href="#passage-{{ citations.index(citation) + 1 }}">[{{ citations.index(citation) + 1 }}]</a>{% else %}No exact passage citation.{% endfor %}
   </p>
@@ -92,6 +91,6 @@
 <p>Live AI calls are disabled on this host. Your files, interpretation, and request preview are saved.</p>
 {% endif %}
 {% endif %}
-<details><summary>Inspect the exact AI request</summary><pre>{{ request_text }}</pre></details>
+<details><summary>Inspect the exact AI request</summary><pre class="request-preview">{{ request_text }}</pre></details>
 <p><a href="{{ url_for('project', exercise=manifest.exercise_id, _anchor='exercise') }}">Return to this exercise</a></p>
 {% endblock %}

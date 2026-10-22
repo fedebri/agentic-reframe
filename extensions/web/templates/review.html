@@ -2,8 +2,7 @@
 {% block title %}Human review — Agentic Reframe{% endblock %}
 {% block content %}
 <h2>Review the interpretation</h2>
-<p>Judge what the supplied evidence justifies now. You do not need to predict whether future interviews will agree.</p>
-<p>A statement can be supported for these interviewees while remaining unrepresentative of a wider population. Check that its wording respects that scope.</p>
+<p class="help">Judge what the supplied evidence justifies now, keeping each claim scoped to the people or situations described. Future research questions belong in Next investigation.</p>
 {% if applied %}<p>This review has been applied and is read-only. Its history is preserved.</p>{% endif %}
 {% if prepared and not applied %}<p>A saved review is awaiting recovery. Continue to apply those exact decisions.</p>{% endif %}
 {% if critique %}
@@ -16,11 +15,13 @@
   <input type="hidden" name="project_id" value="{{ project_id }}">
   <fieldset {% if applied or prepared %}disabled{% endif %}>
     <legend>Review each claim against the current evidence</legend>
-    <p>Keep a useful, appropriately scoped interpretation; revise wording that needs narrowing; exclude a claim you cannot retain. A tentative claim can still be kept for investigation.</p>
-    <p>Supported means the sources justify a claim's meaning and scope. Tentative means it needs further checking. Contested means there is conflicting evidence. Only kept or revised claims can be recorded as Supported. Excluded claims remain outside the findings.</p>
+    <details><summary>How to assess claims</summary>
+      <p class="help">Keep a useful, appropriately scoped interpretation; revise wording that needs narrowing; exclude a claim you cannot retain. A tentative claim can still be kept for investigation.</p>
+      <p class="help">Supported means the sources justify a claim's meaning and scope. Tentative means it needs further checking. Contested means there is conflicting evidence. Only kept or revised claims can be recorded as Supported. Excluded claims remain outside the findings.</p>
+    </details>
     {% for claim in analysis.claims %}
     {% set i = loop.index0 %}{% set decision = data.decisions[i] %}
-    <h3>{{ loop.index }}. {{ claim.statement }}</h3>
+    <h3 class="claim-statement">{{ loop.index }}. {{ claim.statement }}</h3>
     <details><summary>Model details</summary><p>Claim type: {{ claim.claim_type }}. Model confidence: {{ claim.confidence }}. This is the model's self-assessment, not evidence that the claim is correct.</p></details>
     <p>{{ claim.public_reasoning_summary }}</p>
     <p>Evidence: {% for citation in claim.citations %}<a href="#passage-{{ citations.index(citation) + 1 }}">[{{ citations.index(citation) + 1 }}]</a>{% else %}No exact passage citation.{% endfor %}</p>
@@ -51,7 +52,7 @@
     <p><label>Where do you still disagree, and why?<br><textarea name="disagreement" rows="3" cols="40" required>{{ reflection.get('disagreement', '') }}</textarea></label></p>
     <p><label>Assumptions you reconsidered (one per line)<br><textarea name="assumptions_reconsidered" rows="3" cols="40" required>{{ reflection.get('assumptions_reconsidered', []) | join('\n') }}</textarea></label></p>
     <h3>Next investigation</h3>
-    <p>Future research questions guide your next step. They do not determine whether a current claim accurately represents the supplied notes.</p>
+    <p class="help">Future research questions guide your next step. They do not determine whether a current claim accurately represents the supplied notes.</p>
     {% if investigation_questions %}<details><summary>AI-suggested research questions</summary><p>Use these as starting points. Make your own question specific about a missing perspective, a competing explanation, or the limits of the current evidence.</p><ul>{% for question in investigation_questions %}<li>{{ question }}</li>{% endfor %}</ul></details>{% endif %}
     <p><label>Which missing perspective or specific uncertainty should you investigate next?<br><textarea name="next_research_question" rows="3" cols="40" required>{{ reflection.get('next_research_question', '') }}</textarea></label></p>
     <p><label>What evidence would challenge your interpretation or justify broadening it?<br><textarea name="revision_trigger" rows="3" cols="40" required>{{ reflection.get('revision_trigger', '') }}</textarea></label></p>

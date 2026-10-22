@@ -1,7 +1,7 @@
 {% for name, prompt in prompts.items() %}
-<p>
-  <label for="interpretation-{{ name }}">{{ prompt.label }}</label><br>
-  <small id="hint-{{ name }}">{{ prompt.hint }}</small><br>
+<p class="field">
+  <label for="interpretation-{{ name }}">{{ prompt.label }}</label>
+  <small id="hint-{{ name }}">{{ prompt.hint }}</small>
   <textarea id="interpretation-{{ name }}" name="{{ name }}" rows="{{ 4 if name == 'framing' else 3 }}" cols="40" aria-describedby="hint-{{ name }}" required>{{ answers.get(name, '') }}</textarea>
 </p>
 {% endfor %}
