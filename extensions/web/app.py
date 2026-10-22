@@ -251,7 +251,7 @@ def create_app(
             g.storage_lock = store.project_lock(
                 session["workspace_id"],
                 shared=request.method == "GET"
-                and request.endpoint not in {"review", "run"},
+                and request.endpoint not in {"project", "review", "run"},
             )
             g.storage_lock.__enter__()
             with store.connection() as db:
@@ -263,7 +263,7 @@ def create_app(
             if (
                 busy
                 and request.method == "POST"
-                and request.endpoint not in {"run", "save_draft"}
+                and request.endpoint not in {"run", "save_draft", "navigate"}
             ):
                 abort(
                     409,
@@ -297,6 +297,7 @@ def create_app(
         response.headers["Referrer-Policy"] = "no-referrer"
         response.headers["Content-Security-Policy"] = (
             "default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; "
+            "connect-src 'self'; "
             "form-action 'self'; "
             "base-uri 'none'; frame-ancestors 'none'"
         )
@@ -509,11 +510,8 @@ def create_app(
             ).fetchall()
         return render_template("projects.html", projects=saved)
 
-    @app.get("/project")
-    def project():
-        exercise = configuration.exercise(
-            request.args.get("exercise", "frame_challenge")
-        )
+    def journey_context(exercise_id: str | None = None) -> dict:
+        """Share ordered progress and attempt history across workspace and run pages."""
         runs = []
         with store.connection() as db:
             jobs = db.execute(
@@ -540,21 +538,147 @@ def create_app(
                 and job["state"] in {"queued", "running", "failed", "interrupted"}
                 else json.loads((directory / "status.json").read_text())
             )
-            runs.append({"id": run_id, **item, "state": status["state"]})
+            runs.append(
+                {
+                    "id": run_id,
+                    **item,
+                    "state": status["state"],
+                    "reviewed": (directory / "review.receipt.json").exists(),
+                }
+            )
+        journey = []
+        for exercise in sorted(configuration.exercises, key=lambda item: item.order):
+            attempts = [item for item in runs if item["exercise"] == exercise.id]
+            for number, attempt in enumerate(attempts, start=1):
+                attempt["number"] = number
+            latest = attempts[-1] if attempts else None
+            reviewed = any(item["reviewed"] for item in attempts)
+            progress = g.project.get("exercise_progress", {}).get(exercise.id, {})
+            skipped = progress.get("skipped", False) and not reviewed
+            revising = reviewed and (
+                progress.get("revising", False)
+                or (latest and not latest["reviewed"])
+                or (
+                    latest
+                    and "draft_version" in latest
+                    and drafts.get(exercise.id, {}).get("version", 0)
+                    > latest["draft_version"]
+                )
+            )
+            label = "Not started"
+            if skipped:
+                label = "Skipped"
+            elif reviewed:
+                label = "Reviewed — revision in progress" if revising else "Reviewed"
+            elif latest:
+                label = {
+                    "prepared": "Request prepared",
+                    "queued": "Analysis pending",
+                    "running": "Analysis pending",
+                    "awaiting_review": "Awaiting review",
+                    "failed": "Retry needed",
+                    "interrupted": "Retry needed",
+                }.get(latest["state"], "Awaiting review")
+            elif any(drafts.get(exercise.id, {}).get("data", {}).values()):
+                label = "Draft saved"
+            journey.append(
+                {
+                    "id": exercise.id,
+                    "order": exercise.order,
+                    "label": label,
+                    "reviewed": reviewed,
+                    "revising": bool(revising),
+                    "skipped": skipped,
+                    "skip_reason": progress.get("skip_reason", ""),
+                    "attempts": attempts,
+                    "latest": latest,
+                }
+            )
+        exercise_id = (
+            exercise_id
+            or g.project.get("current_exercise")
+            or next(
+                (
+                    item["id"]
+                    for item in journey
+                    if not item["reviewed"] and not item["skipped"]
+                ),
+                journey[0]["id"],
+            )
+        )
+        exercise = configuration.exercise(exercise_id)
+        position = next(
+            index for index, item in enumerate(journey) if item["id"] == exercise.id
+        )
+        current = journey[position]
+        draft = drafts.get(exercise.id, {"version": 0, "data": {}})
+        if exercise.id not in drafts and current["latest"]:
+            # Older deployments froze human answers without also saving a draft.
+            manifest = RunManifest.model_validate_json(
+                (
+                    g.directory
+                    / "runs"
+                    / current["latest"]["id"]
+                    / "input_manifest.json"
+                ).read_bytes()
+            )
+            frame = yaml.safe_load(manifest.human_frame.content)
+            draft["data"] = {
+                key: "\n".join(value) if isinstance(value, list) else value
+                for key, value in frame.items()
+                if key not in {"author_id", "exercise_id"}
+            }
+            draft["data"].update(
+                evidence=[
+                    item["id"]
+                    for item in g.project["uploads"]
+                    if str(g.directory / "uploads" / item["file"])
+                    in manifest.selected_evidence_paths
+                ],
+                context=[claim.claim_id for claim in manifest.approved_context],
+                critic=manifest.critic_enabled,
+            )
+        return {
+            "exercise": exercise,
+            "journey": journey,
+            "current": current,
+            "position": position + 1,
+            "previous_exercise": journey[position - 1] if position else None,
+            "next_exercise": journey[position + 1]
+            if position + 1 < len(journey)
+            else None,
+            "next_unfinished": next(
+                (
+                    item
+                    for item in journey[position + 1 :] + journey[:position]
+                    if (not item["reviewed"] or item["revising"])
+                    and not item["skipped"]
+                ),
+                None,
+            ),
+            "reviewed_count": sum(item["reviewed"] for item in journey),
+            "skipped_count": sum(item["skipped"] for item in journey),
+            "revision_count": sum(item["revising"] for item in journey),
+            "draft": draft,
+            "runs": current["attempts"],
+        }
+
+    @app.get("/project")
+    def project():
+        navigation = journey_context(request.args.get("exercise"))
+        exercise = navigation["exercise"]
+        if g.project.get("current_exercise") != exercise.id:
+            g.project["current_exercise"] = exercise.id
+            _save_index(g.directory, g.project)
         state = replay(g.directory / "ledger/events.jsonl")
         return render_template(
             "project.html",
             project=g.project,
             brief=(g.directory / "brief.md").read_text(),
-            exercises=configuration.exercises,
-            exercise=exercise,
-            instructions={
-                item.id: (source_root / item.source).read_text()
-                for item in configuration.exercises
-            },
+            **navigation,
+            exercises=sorted(configuration.exercises, key=lambda item: item.order),
+            instructions={exercise.id: (source_root / exercise.source).read_text()},
             interpretation_prompts=interpretation_prompts,
-            saved_drafts=drafts,
-            draft=drafts.get(exercise.id, {"version": 0, "data": {}}),
             uploads=[
                 {
                     **item,
@@ -563,14 +687,14 @@ def create_app(
                 for item in g.project["uploads"]
             ],
             context=state.context_claims(),
-            runs=runs,
             has_reviews=bool(state.claims),
             limit=configuration.model.max_input_bytes,
-            draft_saved=request.args.get("saved") == "1" and exercise.id in drafts,
+            draft_saved=request.args.get("saved") == "1"
+            and navigation["draft"]["version"] > 0,
         )
 
-    @app.post("/project/draft")
-    def save_draft():
+    def persist_draft() -> int:
+        """Share version-checked draft saves across navigation and preparation."""
         exercise_id = request.form["exercise"]
         configuration.exercise(exercise_id)
         data = {
@@ -597,32 +721,136 @@ def create_app(
             )
         version = int(request.form.get("draft_version", "0"))
         with store.connection(write=True) as db:
-            changed = db.execute(
-                "INSERT INTO drafts(project_id, exercise_id, data, version) VALUES "
-                "(?, ?, ?, 1) "
-                "ON CONFLICT(project_id, exercise_id) DO UPDATE SET "
-                "data=excluded.data, version=drafts.version+1, "
-                "updated_at=strftime('%Y-%m-%dT%H:%M:%SZ', 'now') WHERE "
-                "drafts.version=? RETURNING version",
-                (session["workspace_id"], exercise_id, serialized, version),
+            previous = db.execute(
+                "SELECT data, version FROM drafts WHERE project_id=? AND exercise_id=?",
+                (session["workspace_id"], exercise_id),
             ).fetchone()
-            if changed is None or (version != 0 and changed["version"] == 1):
+            if version != (previous["version"] if previous else 0):
                 abort(
                     409,
                     "This draft changed on another page or machine. Your submitted "
                     "text is below; reload before saving again.",
                 )
+            if (previous and json.loads(previous["data"]) == data) or (
+                previous is None and not any(data.values())
+            ):
+                return version
+            db.execute(
+                "INSERT INTO drafts(project_id, exercise_id, data, version) "
+                "VALUES (?, ?, ?, 1) ON CONFLICT(project_id, exercise_id) "
+                "DO UPDATE SET data=excluded.data, version=drafts.version+1, "
+                "updated_at=strftime('%Y-%m-%dT%H:%M:%SZ', 'now')",
+                (session["workspace_id"], exercise_id, serialized),
+            )
             db.execute(
                 "UPDATE projects SET updated_at=strftime('%Y-%m-%dT%H:%M:%SZ', "
                 "'now') WHERE id=?",
                 (session["workspace_id"],),
             )
+        progress = g.project.setdefault("exercise_progress", {}).setdefault(
+            exercise_id, {}
+        )
+        if any(data.values()):
+            progress["skipped"] = False
+        if any(
+            item["exercise"] == exercise_id
+            and (g.directory / "runs" / run_id / "review.receipt.json").exists()
+            for run_id, item in g.project["runs"].items()
+        ):
+            progress["revising"] = True
+        return version + 1
+
+    @app.post("/project/draft")
+    def save_draft():
+        version = persist_draft()
+        exercise_id = request.form["exercise"]
+        g.project["current_exercise"] = exercise_id
+        _save_index(g.directory, g.project)
+        if request.accept_mimetypes.best == "application/json":
+            return {"version": version}
         return redirect(
             url_for(
                 "project",
                 exercise=exercise_id,
                 saved="1",
                 _anchor="independent-interpretation",
+            )
+        )
+
+    @app.post("/project/navigate")
+    def navigate():
+        exercise_id = request.form["exercise"]
+        navigation = journey_context(exercise_id)
+        action = request.form.get("navigation", "open")
+        if action not in {"open", "skip", "resume"}:
+            abort(400, "Choose an exercise navigation action.")
+        target = configuration.exercise(
+            request.form.get("target_exercise")
+            or request.form.get("selected_exercise")
+            or exercise_id
+        )
+        if action == "skip":
+            reason = request.form.get("skip_reason", "").strip()
+            if len(reason.encode()) > 2000:
+                raise ValueError("Keep the skip reason within 2,000 bytes.")
+            if navigation["current"]["reviewed"]:
+                abort(
+                    400,
+                    "This exercise already has a saved review. "
+                    "You can revisit or redo it.",
+                )
+            latest = navigation["current"]["latest"]
+            if latest and latest["state"] in {"queued", "running"}:
+                abort(
+                    409,
+                    "This exercise has an active analysis. "
+                    "Navigate elsewhere while it finishes.",
+                )
+            target = configuration.exercise(
+                navigation["next_unfinished"]["id"]
+                if navigation["next_unfinished"]
+                else exercise_id
+            )
+        persist_draft()
+        progress = g.project.setdefault("exercise_progress", {}).setdefault(
+            exercise_id, {}
+        )
+        if action == "skip":
+            progress.update(skipped=True, skip_reason=reason)
+        elif action == "resume":
+            progress["skipped"] = False
+        g.project["current_exercise"] = target.id
+        _save_index(g.directory, g.project)
+        return redirect(
+            url_for(
+                "project",
+                exercise=target.id,
+                overview="1"
+                if action == "skip" and not navigation["next_unfinished"]
+                else None,
+                _anchor="exercise-overview"
+                if action == "skip" and not navigation["next_unfinished"]
+                else "exercise",
+            )
+        )
+
+    @app.post("/project/redo")
+    def redo():
+        exercise_id = request.form["exercise"]
+        navigation = journey_context(exercise_id)
+        if not navigation["current"]["reviewed"]:
+            abort(400, "Complete a human review before redoing this exercise.")
+        if "draft_version" in request.form:
+            persist_draft()
+        progress = g.project.setdefault("exercise_progress", {}).setdefault(
+            exercise_id, {}
+        )
+        progress.update(skipped=False, revising=True)
+        g.project["current_exercise"] = exercise_id
+        _save_index(g.directory, g.project)
+        return redirect(
+            url_for(
+                "project", exercise=exercise_id, _anchor="independent-interpretation"
             )
         )
 
@@ -665,6 +893,7 @@ def create_app(
         known = {item["id"]: item["file"] for item in g.project["uploads"]}
         if not set(selected) <= known.keys():
             abort(400, "Choose evidence uploaded to this project.")
+        draft_version = persist_draft()
         run_id = uuid4().hex
         directory = g.directory / "runs" / run_id
         (g.directory / "frames").mkdir(exist_ok=True)
@@ -684,7 +913,17 @@ def create_app(
             context_claim_ids=request.form.getlist("context"),
             human_frame_path=frame_path,
         )
-        g.project["runs"][run_id] = {"exercise": exercise_id}
+        g.project["runs"][run_id] = {
+            "exercise": exercise_id,
+            "draft_version": draft_version,
+        }
+        g.project["current_exercise"] = exercise_id
+        g.project.setdefault("exercise_progress", {}).setdefault(
+            exercise_id, {}
+        ).update(
+            skipped=False,
+            revising=False,
+        )
         _save_index(g.directory, g.project)
         return redirect(url_for("run", run_id=run_id))
 
@@ -696,6 +935,10 @@ def create_app(
         manifest = RunManifest.model_validate_json(
             (directory / "input_manifest.json").read_bytes()
         )
+        navigation = journey_context(manifest.exercise_id)
+        if g.project.get("current_exercise") != manifest.exercise_id:
+            g.project["current_exercise"] = manifest.exercise_id
+            _save_index(g.directory, g.project)
         with store.connection() as db:
             job = db.execute(
                 "SELECT * FROM jobs WHERE project_id=? AND run_id=? ORDER BY rowid "
@@ -803,6 +1046,7 @@ def create_app(
         response = app.make_response(
             render_template(
                 "run.html",
+                **navigation,
                 run_id=run_id,
                 manifest=manifest,
                 status=status,
@@ -830,6 +1074,10 @@ def create_app(
             abort(404)
         directory = g.directory / "runs" / run_id
         manifest, analysis, critique = load_completed_run(directory)
+        navigation = journey_context(manifest.exercise_id)
+        if g.project.get("current_exercise") != manifest.exercise_id:
+            g.project["current_exercise"] = manifest.exercise_id
+            _save_index(g.directory, g.project)
         worksheet = directory / "review.yaml"
         if not worksheet.exists():
             export_review(directory, worksheet, g.project["author"])
@@ -894,6 +1142,7 @@ def create_app(
         )
         return render_template(
             "review.html",
+            **navigation,
             run_id=run_id,
             analysis=analysis,
             critique=critique,

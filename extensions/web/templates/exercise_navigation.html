@@ -1,0 +1,13 @@
+<p>{{ journey | length }} exercises · {{ reviewed_count }} reviewed · {{ skipped_count }} skipped · {{ journey | length - reviewed_count - skipped_count }} remaining.{% if revision_count %} {{ revision_count }} revision(s) in progress.{% endif %}</p>
+<p>Exercise {{ position }} of {{ journey | length }}: <strong>{{ exercise.id.replace('_', ' ').capitalize() }}</strong> — {{ current.label }}.</p>
+<nav aria-label="Exercise navigation">
+  {% if editing_exercise %}
+    {% if previous_exercise %}<button form="exercise-form" type="submit" name="target_exercise" value="{{ previous_exercise.id }}" formaction="{{ url_for('navigate') }}" formnovalidate>Previous exercise</button>{% endif %}
+    <a href="#exercise-overview">All exercises</a>
+    {% if next_exercise %}<button form="exercise-form" type="submit" name="target_exercise" value="{{ next_exercise.id }}" formaction="{{ url_for('navigate') }}" formnovalidate>Next exercise</button>{% endif %}
+  {% else %}
+    {% if previous_exercise %}<a href="{{ url_for('project', exercise=previous_exercise.id, _anchor='exercise') }}">Previous exercise</a> | {% endif %}
+    <a href="{{ url_for('project', exercise=exercise.id, overview='1', _anchor='exercise-overview') }}">All exercises</a>
+    {% if next_exercise %} | <a href="{{ url_for('project', exercise=next_exercise.id, _anchor='exercise') }}">Next exercise</a>{% endif %}
+  {% endif %}
+</nav>

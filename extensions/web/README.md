@@ -3,13 +3,13 @@
 This is a separate prototype adapter for Agentic Reframe. It imports the existing
 Python workflow; the core package, CLI, configuration, prompts, exercises, and
 existing outputs do not depend on this extension and are not modified by it.
-There is no frontend framework or frontend build step. A small optional browser script
-updates exercise instructions and interpretation questions immediately when the
-selection changes, preserving a separate draft for each exercise and keeping
-evidence selections checked. **Save draft** persists unfinished work on the server;
-unsaved changes last until the page is left or reloaded.
-Without JavaScript, use **Choose exercise**
-to load the selected exercise. A small stylesheet wraps long text and keeps text
+There is no frontend framework or frontend build step. Selecting an exercise
+saves its current draft before loading the new instructions and questions.
+Without JavaScript, use **Choose exercise** for the same save-and-open action.
+The script also saves changed answers before following page links, uploading
+evidence or switching projects. A conflict or connection failure leaves the
+edits on screen; unexpected refresh/close prompts about unsaved changes.
+**Save draft** remains available explicitly. A small stylesheet keeps text
 boxes within the page width. Light typography, a blue wordmark/dot, open spacing,
 and fine rules borrow a few elements from the Derver website guidelines. Dense
 forms retain a white canvas and dark text.
@@ -44,7 +44,36 @@ available through the core CLI rather than a worked-example website page.
 **My projects** lists all projects owned by the current identity. Every project,
 including the current one, has an **Open project** button. A named project selector
 in the shared header lets you open another project or return from a run/review to
-the current project's exercises. Save unfinished answers before switching projects.
+the current project's exercises. Opening a project resumes its last visited
+exercise, including on another device for a signed-in tester.
+
+## Exercise navigation
+
+The project page shows ordered progress, **Previous exercise**, **Next exercise**,
+and an expandable **All exercises** overview. Each exercise has its own draft,
+evidence/claim selection and numbered attempt history. Moving between exercises
+does not start an analysis or mark an exercise reviewed.
+
+- **Skip for now and continue** saves the draft, records an optional reason and
+  opens the next unfinished exercise. **Resume this exercise** reverses the skip.
+  An active analysis finishes normally; navigate away rather than skipping it.
+- A saved human review marks coverage as **Reviewed**. The saved run offers
+  **Continue to the next exercise**; at the end it links to the coverage overview.
+- **Redo exercise** reopens editable human input for a separate new attempt.
+  Previous requests, model responses, reviews and ledger entries remain intact.
+  A new paid call still requires request preview and explicit authorization.
+- **Retry** on a failed/interrupted run retains that run's frozen inputs. It is
+  distinct from redoing an exercise with different input.
+- Reviewed exercises with a new draft or unfinished attempt show **Reviewed —
+  revision in progress**. Navigation does not supersede earlier accepted claims;
+  the existing human review and provenance rules still apply.
+
+The current exercise, skip reasons and revision intent live in the existing
+private `project.json` index; drafts retain SQLite version checks. Older projects
+derive progress from their saved runs and review receipts. If an old run has no
+saved draft, the workspace restores its frozen human answers for editing.
+No database or ledger migration is required. Final synthesis/output development
+remains separate; the existing report export is retained.
 
 The normal workflow supports:
 
@@ -89,7 +118,7 @@ interpretations create new runs; existing frozen inputs are preserved. The
 prototype requires an independent interpretation for every exercise.
 The project page puts exercise selection first, evidence upload second, then the
 independent interpretation, evidence selection, and reviewed findings. Uploading
-evidence retains the selected exercise. Saved runs and export remain below.
+evidence retains the selected exercise. Its attempt history and export remain below.
 
 `interpretations.yaml` contains web-only question labels and guidance derived from
 each canonical exercise Markdown file. For example, resource flow asks for

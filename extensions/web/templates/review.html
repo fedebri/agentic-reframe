@@ -63,4 +63,5 @@
 </form>
 {% include 'evidence_catalog.html' %}
 <p><a href="{{ url_for('run', run_id=run_id) }}">Return to comparison</a></p>
+{% if applied %}{% include 'exercise_navigation.html' %}{% endif %}
 {% endblock %}

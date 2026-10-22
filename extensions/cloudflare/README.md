@@ -41,6 +41,13 @@ model calls. Only the coordinator's explicit retry creates a new job ID.
 For an existing deployment, follow the focused
 [Durable Object runner update steps](FREE_PLAN_UPDATE.md).
 
+Exercise navigation, skips and revision intent use the existing private project
+index and are checkpointed with the cohort snapshot. Deploy navigation changes
+to `agentic-reframe` with the existing website build/deploy commands; the runner
+protocol, bindings and migration tags are unchanged. Existing projects derive
+progress from their saved runs and review receipts, without a reset or database
+migration. See [the website navigation guide](../web/README.md#exercise-navigation).
+
 This is a **small-cohort pilot**, with one analysis running at a time and a **12 MiB
 uncompressed working-data limit across the cohort**. Each operation restores and
 packs the cohort snapshot. This preserves the existing engine with a small adapter,

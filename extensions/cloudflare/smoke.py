@@ -145,6 +145,9 @@ def main():
         "/project/prepare",
         {
             "exercise": "frame_challenge",
+            "draft_version": re.search(rb'name="draft_version" value="(\d+)"', page)[
+                1
+            ].decode(),
             "framing": draft,
             "observations": "FICTIONAL note names one person's timing constraint.",
             "assumptions": "Timing may matter for other participants.",
@@ -177,7 +180,9 @@ def main():
             "/project/draft",
             {
                 "exercise": "frame_challenge",
-                "draft_version": "1",
+                "draft_version": re.search(
+                    rb'name="draft_version" value="(\d+)"', project_page
+                )[1].decode(),
                 "framing": saved["draft"],
             },
             project_page,
@@ -218,7 +223,40 @@ def main():
             -2500:
         ]
         assert b"read-only" in browser.request(run + "/review")[2]
-        assert browser.request("/project")[2].count(saved["draft"].encode()) > 0
+        status, _, page = browser.request("/project")
+        assert status == 200 and saved["draft"].encode() in page
+        assert b"Reviewed" in page
+        status, _, page = browser.form(
+            "/project/navigate",
+            {
+                "exercise": "frame_challenge",
+                "draft_version": re.search(
+                    rb'name="draft_version" value="(\d+)"', page
+                )[1].decode(),
+                "framing": saved["draft"],
+                "target_exercise": "align_impact_goals",
+            },
+            page,
+        )
+        assert status == 200 and b'<option value="align_impact_goals" selected>' in page
+        status, _, page = browser.form(
+            "/project/navigate",
+            {
+                "exercise": "align_impact_goals",
+                "draft_version": "0",
+                "framing": "FICTIONAL goal draft",
+                "navigation": "skip",
+                "skip_reason": "FICTIONAL awaiting more perspectives",
+            },
+            page,
+        )
+        assert (
+            status == 200
+            and b'<option value="align_participatory_approach" selected>' in page
+        )
+        assert b"1 skipped" in page and b"FICTIONAL awaiting more perspectives" in page
+        status, _, page = browser.request("/project?exercise=frame_challenge")
+        assert status == 200 and saved["draft"].encode() in page
         saved["run"] = run
     browser.cookies.save(ignore_discard=True, ignore_expires=True)
     (HERE / ".smoke-expectations.local").write_text(json.dumps(saved))
@@ -228,7 +266,7 @@ def main():
     if arguments.analysis:
         print(
             "PASS: alarm, private service, SDK with stub provider, critic, "
-            "concurrent draft save, human review."
+            "concurrent draft save, human review, navigation and skips."
         )
     print("Restart Wrangler, then run this script with --resume to check persistence.")
 

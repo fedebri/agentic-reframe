@@ -421,9 +421,33 @@ def test_background_call_does_not_block_other_testers_or_draft_saves(
             assert owner.get(url).status_code == 200
             assert (
                 submit(
-                    owner, "/project/draft", {**answers, "draft_version": "0"}
+                    owner, "/project/draft", {**answers, "draft_version": "1"}
                 ).status_code
                 == 302
+            )
+            assert (
+                submit(
+                    owner,
+                    "/project/navigate",
+                    {
+                        **answers,
+                        "draft_version": "1",
+                        "target_exercise": "frame_challenge",
+                    },
+                ).status_code
+                == 302
+            )
+            assert (
+                submit(
+                    owner,
+                    "/project/navigate",
+                    {
+                        **answers,
+                        "draft_version": "1",
+                        "navigation": "skip",
+                    },
+                ).status_code
+                == 409
             )
         finally:
             release.set()
@@ -456,7 +480,7 @@ def test_interrupted_worker_is_not_retried_automatically(owner, pending, hosted)
     assert "This run's allowance is exhausted" in page
     assert "Run AI analysis</button>" not in page
     assert "Refresh" not in owner.get(url).headers
-    assert f'href="{url}">frame challenge</a> — interrupted' in owner.get(
+    assert f'href="{url}">Attempt 1</a> — interrupted' in owner.get(
         "/project"
     ).get_data(as_text=True)
     status_file = (
@@ -798,3 +822,68 @@ def test_database_initializes_across_simultaneous_cold_processes(tmp_path):
     for result in results:
         assert result.returncode == 0, result.stderr
         assert result.stdout.strip() == "ready"
+
+
+@pytest.mark.parametrize(
+    "hosted", [{"PROJECT_CONFIG": web.ROOT / "config/project.yaml"}], indirect=True
+)
+def test_journey_resumes_across_devices_and_navigation_keeps_conflicting_edits(
+    owner, actor, hosted
+):
+    with owner.session_transaction() as session:
+        project_id = session["workspace_id"]
+    assert (
+        submit(
+            owner,
+            "/project/navigate",
+            {
+                "exercise": "frame_challenge",
+                "draft_version": "0",
+                "framing": "FICTIONAL first device",
+                "target_exercise": "interviews",
+            },
+        ).status_code
+        == 302
+    )
+    second = actor()
+    assert submit(second, "/projects", {"workspace_id": project_id}).status_code == 302
+    assert b'<option value="interviews" selected>' in second.get("/project").data
+    assert (
+        submit(
+            second,
+            "/project/draft",
+            {
+                "exercise": "frame_challenge",
+                "draft_version": "1",
+                "framing": "FICTIONAL second device",
+            },
+        ).status_code
+        == 302
+    )
+    stale = submit(
+        owner,
+        "/project/navigate",
+        {
+            "exercise": "frame_challenge",
+            "draft_version": "1",
+            "framing": "FICTIONAL conflicting edit",
+            "target_exercise": "power_mapping",
+        },
+    )
+    assert stale.status_code == 409 and b"FICTIONAL conflicting edit" in stale.data
+    assert b'<option value="frame_challenge" selected>' in second.get("/project").data
+    assert b"FICTIONAL second device" in second.get("/project").data
+    outsider = actor("other@example.test")
+    with outsider.session_transaction() as session:
+        session["workspace_id"] = project_id
+    assert (
+        submit(
+            outsider,
+            "/project/navigate",
+            {
+                "exercise": "frame_challenge",
+                "target_exercise": "interviews",
+            },
+        ).status_code
+        == 404
+    )

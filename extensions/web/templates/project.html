@@ -3,6 +3,20 @@
 {% block content %}
 <h2>{{ project.name }}</h2>
 <p>Researcher: {{ project.author }}. {% if signed_in %}Your project is available from My projects after signing in on another device.{% else %}Keep using this browser to return to your local preview project.{% endif %}</p>
+{% set editing_exercise = true %}
+{% include 'exercise_navigation.html' %}
+<details id="exercise-overview" {% if request.args.get('overview') == '1' %}open{% endif %}>
+  <summary>Exercise overview and progress</summary>
+  <p>Follow the numbered order or open any exercise. Reviewed means you saved a human review; skipped exercises remain available.</p>
+  <table>
+    <thead><tr><th scope="col">Exercise</th><th scope="col">Progress</th><th scope="col">Open</th></tr></thead>
+    <tbody>{% for item in journey %}<tr {% if item.id == exercise.id %}aria-current="step"{% endif %}>
+      <th scope="row">{{ item.order }}. {{ item.id.replace('_', ' ').capitalize() }}</th>
+      <td>{{ item.label }}{% if item.skipped and item.skip_reason %}<br>{{ item.skip_reason }}{% endif %}</td>
+      <td><button form="exercise-form" type="submit" name="target_exercise" value="{{ item.id }}" formaction="{{ url_for('navigate') }}" formnovalidate>Open exercise</button></td>
+    </tr>{% endfor %}</tbody>
+  </table>
+</details>
 <details><summary>Your challenge brief</summary><pre>{{ brief }}</pre></details>
 <p><a href="{{ url_for('restart') }}">Revise the brief and restart</a> | <a href="{{ url_for('restart', blank='1') }}">Start a blank project</a></p>
 {% if live_available %}
@@ -11,21 +25,17 @@
 <p>Real AI requests are disabled on this host. You can still prepare exercises and inspect request previews.</p>
 {% endif %}
 <h3 id="exercise">1. Choose an exercise</h3>
-<form method="get" action="{{ url_for('project', _anchor='exercise') }}">
-  <p><label>Exercise<br><select id="exercise-select" name="exercise" aria-controls="exercise-instructions independent-interpretation">
+  <p><label>Exercise<br><select id="exercise-select" form="exercise-form" name="selected_exercise" aria-controls="exercise-instructions independent-interpretation">
     {% for item in exercises %}<option value="{{ item.id }}" {% if item.id == exercise.id %}selected{% endif %}>{{ item.order }}. {{ item.id.replace('_', ' ') }}</option>{% endfor %}
   </select></label></p>
-  <button id="choose-exercise" type="submit">Choose exercise</button>
-</form>
+  <button id="choose-exercise" form="exercise-form" type="submit" formaction="{{ url_for('navigate') }}" formnovalidate>Choose exercise</button>
+<p id="navigation-status" role="status">Switching exercises saves your draft first. Navigation makes no AI calls.</p>
 <details id="exercise-instructions"><summary>Read the exercise instructions</summary><pre>{{ instructions[exercise.id] }}</pre></details>
-{% for item in exercises %}
-<template id="instructions-{{ item.id }}">{{ instructions[item.id] }}</template>
-<template id="interpretation-{{ item.id }}">
-  {% set answers = saved_drafts.get(item.id, {}).get('data', {}) %}
-  {% set prompts = interpretation_prompts[item.id] %}{% include 'interpretation_fields.html' %}
-</template>
-{% endfor %}
-<template id="saved-drafts">{{ saved_drafts | tojson }}</template>
+{% if current.skipped %}<p>This exercise is skipped for now.{% if current.skip_reason %} Reason: {{ current.skip_reason }}{% endif %}</p><button form="exercise-form" type="submit" name="navigation" value="resume" formaction="{{ url_for('navigate') }}" formnovalidate>Resume this exercise</button>{% endif %}
+{% if current.reviewed %}
+<p>A human review is saved for this exercise. You can read an earlier attempt below or prepare a separate revision.</p>
+<button form="exercise-form" type="submit" formaction="{{ url_for('redo') }}" formnovalidate>Redo exercise</button>
+{% endif %}
 <hr>
 <h3>2. Add evidence</h3>
 <p>Upload interview notes, observations, or research documents as UTF-8 Markdown or plain text. Each file can contain up to {{ '{:,}'.format(limit) }} bytes. Uploading a file does not select it for analysis.</p>
@@ -40,7 +50,7 @@
   <button type="submit">Upload evidence</button>
 </form>
 <hr>
-<form method="post" action="{{ url_for('prepare') }}">
+<form id="exercise-form" method="post" action="{{ url_for('prepare') }}">
   <input type="hidden" name="csrf" value="{{ csrf }}">
   <input type="hidden" name="project_id" value="{{ project_id }}">
   <input id="prepared-exercise" type="hidden" name="exercise" value="{{ exercise.id }}">
@@ -48,8 +58,7 @@
   <fieldset id="independent-interpretation">
     <legend>Your independent interpretation: <span id="interpretation-exercise">{{ exercise.id.replace('_', ' ').capitalize() }}</span></legend>
     <p>Complete this before seeing AI output. It is saved separately and never sent to the AI. Write “unknown” where evidence is missing.</p>
-    <p>Use Save draft to keep unfinished answers before switching projects. Preparing a run freezes a separate interpretation for that run.</p>
-    <p id="exercise-draft-note" hidden>Switching exercises keeps separate drafts on this page. Save each draft before leaving or reloading.</p>
+    <p>Save draft keeps unfinished answers. Switching exercises also saves first. Preparing a run freezes a separate interpretation for that attempt.</p>
     {% if draft_saved %}<p id="draft-saved-status" role="status">Draft saved. You can return to it later{% if signed_in %} on another device{% endif %}.</p>{% endif %}
     <div id="interpretation-fields">
       {% set answers = draft.data %}
@@ -73,12 +82,17 @@
   <button type="submit" formaction="{{ url_for('save_draft') }}" formnovalidate>Save draft</button>
   <button type="submit">Save interpretation and preview request</button>
   <p>This saves a new run without calling the AI. Each new interpretation or evidence selection needs a new run.</p>
+  {% if not current.reviewed %}
+  <p><label>Reason for skipping (optional)<br><input name="skip_reason" value="{{ current.skip_reason }}" maxlength="2000"></label></p>
+  <button type="submit" name="navigation" value="skip" formaction="{{ url_for('navigate') }}" formnovalidate {% if current.latest and current.latest.state in ['queued', 'running'] %}disabled{% endif %}>Skip for now and continue</button>
+  {% endif %}
 </form>
 <hr>
-<h3>3. Continue saved runs</h3>
+<h3>3. Attempts for this exercise</h3>
 {% if runs %}
-<ol>{% for item in runs %}<li><a href="{{ url_for('run', run_id=item.id) }}">{{ item.exercise.replace('_', ' ') }}</a> — {{ item.state }} ({{ item.id[:8] }})</li>{% endfor %}</ol>
-{% else %}<p>No runs prepared yet.</p>{% endif %}
+<ol>{% for item in runs | reverse %}<li><a href="{{ url_for('run', run_id=item.id) }}">Attempt {{ item.number }}</a> — {% if item.reviewed %}Reviewed{% else %}{{ item.state.replace('_', ' ') }}{% endif %} ({{ item.id[:8] }})</li>{% endfor %}</ol>
+{% else %}<p>No attempts prepared for this exercise yet.</p>{% endif %}
+{% if current.reviewed %}<p>{% if next_unfinished %}<a href="{{ url_for('project', exercise=next_unfinished.id, _anchor='exercise') }}">Continue to the next unfinished exercise</a>{% else %}<a href="#exercise-overview">Review exercise coverage</a>. {% if revision_count %}An unfinished revision remains available here.{% else %}Every exercise has a saved review or was explicitly skipped.{% endif %}{% endif %}</p>{% endif %}
 <h3>4. Export reviewed research</h3>
 <p>The report separates evidence-supported findings from your framing decisions. Proposed or contested claims stay in the research history.</p>
 <form method="post" action="{{ url_for('export') }}">

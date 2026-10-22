@@ -1,61 +1,80 @@
-const exerciseSelect = document.getElementById("exercise-select");
-const exerciseInstructions = document.getElementById("exercise-instructions");
-const interpretationFields = document.getElementById("interpretation-fields");
-const drafts = new Map(Object.entries(JSON.parse(
-    document.getElementById("saved-drafts").content.textContent
-)));
-const draftVersion = document.getElementById("draft-version");
-const savedNotice = document.getElementById("draft-saved-status");
-let currentExercise = exerciseSelect.value;
+const form = document.getElementById("exercise-form");
+const choose = document.getElementById("choose-exercise");
+const notice = document.getElementById("navigation-status");
+let dirty = false;
+let submitting = false;
+let leaving = false;
 
-if (savedNotice) {
-    interpretationFields.addEventListener("input", () => { savedNotice.hidden = true; });
+for (const event of ["input", "change"]) {
+    form.addEventListener(event, () => {
+        dirty = true;
+        const saved = document.getElementById("draft-saved-status");
+        if (saved) saved.hidden = true;
+    });
+}
+form.addEventListener("submit", () => { submitting = true; });
+document.getElementById("exercise-select").addEventListener("change", () => {
+    form.requestSubmit(choose);
+});
+choose.hidden = true;
+const overview = document.getElementById("exercise-overview");
+if (window.location.hash === "#exercise-overview") overview.open = true;
+for (const link of document.querySelectorAll('a[href="#exercise-overview"]')) {
+    link.addEventListener("click", () => { overview.open = true; });
 }
 
-exerciseSelect.addEventListener("change", () => {
-    if (savedNotice) savedNotice.hidden = true;
-    // Keep answers attached to their exercise when the questions change.
-    const answers = Object.fromEntries(
-        [...interpretationFields.querySelectorAll("textarea")].map(
-            field => [field.name, field.value]
-        )
-    );
-    answers.evidence = [...document.querySelectorAll('input[name="evidence"]:checked')].map(field => field.value);
-    answers.context = [...document.querySelectorAll('input[name="context"]:checked')].map(field => field.value);
-    answers.critic = document.querySelector('input[name="critic"]').checked;
-    drafts.set(currentExercise, {data: answers, version: Number(draftVersion.value)});
-    currentExercise = exerciseSelect.value;
-    const content = document.getElementById(`instructions-${exerciseSelect.value}`);
-    exerciseInstructions.querySelector("pre").textContent = content.content.textContent;
-    exerciseInstructions.open = true;
-    const prompts = document.getElementById(`interpretation-${currentExercise}`);
-    interpretationFields.replaceChildren(prompts.content.cloneNode(true));
-    if (drafts.has(currentExercise)) {
-        for (const field of interpretationFields.querySelectorAll("textarea")) {
-            field.value = drafts.get(currentExercise).data[field.name];
+// Save before leaving through the project selector, upload form, or a page link.
+async function saveBeforeLeaving(continueNavigation) {
+    if (leaving) return;
+    leaving = true;
+    const data = new FormData(form);
+    const controls = [...form.elements].filter(control => !control.disabled);
+    controls.forEach(control => { control.disabled = true; });
+    notice.textContent = "Saving draft…";
+    try {
+        const response = await fetch(form.querySelector('button[formaction$="/draft"]').formAction, {
+            method: "POST", body: data, headers: {Accept: "application/json"}
+        });
+        if (!response.ok) {
+            notice.textContent = response.status === 409
+                ? "This draft changed on another page or machine. Your edits remain here. Copy them before reloading to resolve the conflict."
+                : "The draft could not be saved. Your edits remain here; retry Save draft before leaving.";
+            leaving = false;
+            return;
         }
-        for (const name of ["evidence", "context"]) {
-            for (const field of document.querySelectorAll(`input[name="${name}"]`)) {
-                field.checked = drafts.get(currentExercise).data[name].includes(field.value);
-            }
-        }
-        document.querySelector('input[name="critic"]').checked = drafts.get(currentExercise).data.critic;
+        const saved = await response.json();
+        document.getElementById("draft-version").value = saved.version;
+        dirty = false;
+        submitting = true;
+        notice.textContent = "Draft saved.";
+        continueNavigation();
+    } catch {
+        notice.textContent = "The draft could not be saved. Your edits remain here; check the connection and retry.";
+        leaving = false;
+    } finally {
+        controls.forEach(control => { control.disabled = false; });
     }
-    draftVersion.value = drafts.get(currentExercise)?.version ?? 0;
-    const title = currentExercise.replaceAll("_", " ");
-    document.getElementById("interpretation-exercise").textContent = (
-        title.charAt(0).toUpperCase() + title.slice(1)
-    );
-    for (const field of document.querySelectorAll('input[type="hidden"][name="exercise"]')) {
-        field.value = currentExercise;
-    }
+}
 
-    const url = new URL(window.location.href);
-    url.searchParams.set("exercise", exerciseSelect.value);
-    url.searchParams.delete("saved");
-    url.hash = "exercise";
-    window.history.replaceState(null, "", url);
+for (const other of document.forms) {
+    if (other === form) continue;
+    other.addEventListener("submit", event => {
+        if (!dirty || submitting) return;
+        event.preventDefault();
+        saveBeforeLeaving(() => other.requestSubmit(event.submitter));
+    });
+}
+for (const link of document.querySelectorAll("a[href]")) {
+    link.addEventListener("click", event => {
+        if (!dirty || submitting || link.getAttribute("href").startsWith("#")
+            || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+        event.preventDefault();
+        saveBeforeLeaving(() => window.location.assign(link.href));
+    });
+}
+window.addEventListener("beforeunload", event => {
+    if (dirty && !submitting) {
+        event.preventDefault();
+        event.returnValue = "";
+    }
 });
-
-document.getElementById("choose-exercise").hidden = true;
-document.getElementById("exercise-draft-note").hidden = false;

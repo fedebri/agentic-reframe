@@ -193,7 +193,7 @@ def test_exercise_selection_and_fallback_prepare_only_the_selected_exercise(
     )
     assert uploaded.status_code == 302
     assert uploaded.headers["Location"] == "/project?exercise=interviews#exercise"
-    original_index = (workspace / "project.json").read_bytes()
+    original_index = json.loads((workspace / "project.json").read_text())
     response = browser.get("/project?exercise=interviews")
     assert response.status_code == 200
     text = response.get_data(as_text=True)
@@ -207,11 +207,15 @@ def test_exercise_selection_and_fallback_prepare_only_the_selected_exercise(
         'id="prepared-exercise" type="hidden" name="exercise" value="interviews"'
         in text
     )
-    assert text.count('<template id="instructions-') == 13
-    assert '<button id="choose-exercise" type="submit">' in text
+    assert (
+        text.count('name="target_exercise"') == 15
+    )  # overview plus adjacent exercises
+    assert '<button id="choose-exercise" form="exercise-form"' in text
     assert "script-src 'self'" in response.headers["Content-Security-Policy"]
     assert "unsafe-inline" not in response.headers["Content-Security-Policy"]
-    assert (workspace / "project.json").read_bytes() == original_index
+    updated_index = json.loads((workspace / "project.json").read_text())
+    assert updated_index.pop("current_exercise") == "interviews"
+    assert updated_index == original_index
     assert not (workspace / "ledger/events.jsonl").exists()
 
     preview = tmp_path / "browser-preview"
@@ -332,7 +336,7 @@ def test_project_order_keeps_saved_runs_and_export_after_reviewed_findings(
         "Evidence for this exercise</legend>",
         "Reviewed findings to include</legend>",
         "Save interpretation and preview request",
-        "3. Continue saved runs",
+        "3. Attempts for this exercise",
         "4. Export reviewed research",
     ]
     positions = [text.index(section) for section in sections]
@@ -701,7 +705,9 @@ def test_live_authorization_and_project_budget_use_core_reservations(
     assert work_once(web_app.extensions["web_store"])
     assert client.responses.calls == 1
     assert web._reserved(directory) == web.Decimal("0.0022")
-    second = post(browser, "/project/prepare", frame_form).headers["Location"]
+    second = post(
+        browser, "/project/prepare", {**frame_form, "draft_version": "1"}
+    ).headers["Location"]
     assert post(browser, second, {"authorize": "yes"}).status_code == 400
     assert (
         post(
@@ -809,7 +815,7 @@ def test_project_selector_and_list_reopen_current_and_other_projects(
         post(
             browser,
             "/project/draft",
-            {"exercise": "frame_challenge", "draft_version": "0", "framing": "FIRST"},
+            {"exercise": "frame_challenge", "draft_version": "1", "framing": "FIRST"},
         ).status_code
         == 302
     )
@@ -888,3 +894,207 @@ def test_browser_session_survives_app_restart(web_app, browser, workspace):
     response = restarted.get("/project")
     assert response.status_code == 200
     assert b"FICTIONAL workshop inquiry" in response.data
+
+
+@pytest.mark.parametrize(
+    "web_app", [{"PROJECT_CONFIG": web.ROOT / "config/project.yaml"}], indirect=True
+)
+def test_navigation_saves_each_draft_and_selection_without_preparing_a_run(
+    browser, workspace, frame_form, web_app
+):
+    assert (
+        post(
+            browser,
+            "/project/upload",
+            {
+                "exercise": "frame_challenge",
+                "evidence": (io.BytesIO(b"FICTIONAL evidence."), "note.md"),
+            },
+        ).status_code
+        == 302
+    )
+    evidence_id = json.loads((workspace / "project.json").read_text())["uploads"][0][
+        "id"
+    ]
+    response = post(
+        browser,
+        "/project/navigate",
+        {
+            **frame_form,
+            "draft_version": "0",
+            "evidence": evidence_id,
+            "critic": "yes",
+            "selected_exercise": "interviews",
+        },
+    )
+    assert response.status_code == 302
+    assert response.headers["Location"] == "/project?exercise=interviews#exercise"
+    page = browser.get(response.headers["Location"]).get_data(as_text=True)
+    assert '<option value="interviews" selected>' in page
+    assert "Draft saved" in page
+    assert (
+        "connect-src 'self'"
+        in browser.get("/project").headers["Content-Security-Policy"]
+    )
+    # The next empty exercise is navigable without inventing a draft or an attempt.
+    assert (
+        post(
+            browser,
+            "/project/navigate",
+            {
+                "exercise": "interviews",
+                "draft_version": "0",
+                "target_exercise": "frame_challenge",
+            },
+        ).status_code
+        == 302
+    )
+    page = browser.get("/project").get_data(as_text=True)
+    assert frame_form["framing"] in page
+    assert f'value="{evidence_id}" checked' in page
+    assert 'name="critic" value="yes" checked' in page
+    with web_app.extensions["web_store"].connection() as db:
+        assert db.execute("SELECT count(*) FROM drafts").fetchone()[0] == 1
+        assert db.execute("SELECT count(*) FROM jobs").fetchone()[0] == 0
+    assert json.loads((workspace / "project.json").read_text())["runs"] == {}
+    assert not (workspace / "ledger/events.jsonl").exists()
+
+
+@pytest.mark.parametrize(
+    "web_app", [{"PROJECT_CONFIG": web.ROOT / "config/project.yaml"}], indirect=True
+)
+def test_skip_is_explicit_reversible_and_preserves_the_draft(browser, workspace):
+    response = post(
+        browser,
+        "/project/navigate",
+        {
+            "exercise": "frame_challenge",
+            "navigation": "skip",
+            "framing": "FICTIONAL partial",
+            "draft_version": "0",
+            "skip_reason": "Need <more> interviews",
+        },
+    )
+    assert response.status_code == 302
+    assert (
+        response.headers["Location"] == "/project?exercise=align_impact_goals#exercise"
+    )
+    page = browser.get(response.headers["Location"]).get_data(as_text=True)
+    assert "0 reviewed · 1 skipped · 12 remaining" in page
+    assert "Need &lt;more&gt; interviews" in page
+    assert (
+        b"Resume this exercise" in browser.get("/project?exercise=frame_challenge").data
+    )
+    assert (
+        post(
+            browser,
+            "/project/navigate",
+            {
+                "exercise": "frame_challenge",
+                "navigation": "resume",
+                "framing": "FICTIONAL partial",
+                "draft_version": "1",
+            },
+        ).status_code
+        == 302
+    )
+    page = browser.get("/project").get_data(as_text=True)
+    assert "0 reviewed · 0 skipped · 13 remaining" in page
+    assert "FICTIONAL partial" in page
+    assert "Resume this exercise" not in page
+    assert not (workspace / "ledger/events.jsonl").exists()
+
+
+def test_skipping_the_last_exercise_opens_coverage_without_marking_it_reviewed(
+    browser, workspace
+):
+    response = post(
+        browser,
+        "/project/navigate",
+        {
+            "exercise": "frame_challenge",
+            "navigation": "skip",
+            "draft_version": "0",
+        },
+    )
+    assert "overview=1#exercise-overview" in response.headers["Location"]
+    page = browser.get(response.headers["Location"]).get_data(as_text=True)
+    assert "0 reviewed · 1 skipped · 0 remaining" in page
+    assert '<details id="exercise-overview" open>' in page
+    assert json.loads((workspace / "project.json").read_text())["runs"] == {}
+
+
+def test_redo_keeps_the_review_and_frozen_attempt_and_separates_new_attempts(
+    browser, workspace, prepared, frame_form, review_form
+):
+    assert post(browser, prepared + "/review", review_form).status_code == 302
+    directory = workspace / "runs" / prepared.rsplit("/", 1)[1]
+    frozen = {
+        name: (directory / name).read_bytes()
+        for name in (
+            "input_manifest.json",
+            "analyst_response.json",
+            "review.yaml",
+            "review.receipt.json",
+        )
+    }
+    ledger = (workspace / "ledger/events.jsonl").read_bytes()
+    assert b"Review saved." in browser.get(prepared).data
+    assert (
+        post(browser, "/project/redo", {"exercise": "frame_challenge"}).status_code
+        == 302
+    )
+    page = browser.get("/project").get_data(as_text=True)
+    assert "Reviewed — revision in progress" in page
+    assert frame_form["framing"] in page
+    new = post(
+        browser,
+        "/project/prepare",
+        {
+            **frame_form,
+            "draft_version": "1",
+            "framing": "FICTIONAL revised independent view",
+        },
+    )
+    assert new.status_code == 302 and new.headers["Location"] != prepared
+    page = browser.get("/project").get_data(as_text=True)
+    assert "Attempt 1" in page and "Attempt 2" in page
+    assert "Reviewed — revision in progress" in page
+    assert all((directory / name).read_bytes() == data for name, data in frozen.items())
+    assert (workspace / "ledger/events.jsonl").read_bytes() == ledger
+    assert b"Run AI analysis" not in browser.get(prepared).data
+
+
+def test_legacy_run_restores_human_input_as_a_draft_without_rewriting_the_run(
+    browser, workspace, prepared, frame_form, web_app
+):
+    with web_app.extensions["web_store"].connection(write=True) as db:
+        db.execute("DELETE FROM drafts WHERE project_id=?", (workspace.name,))
+    directory = workspace / "runs" / prepared.rsplit("/", 1)[1]
+    frozen = (directory / "input_manifest.json").read_bytes()
+    page = browser.get("/project").get_data(as_text=True)
+    assert frame_form["framing"] in page
+    assert 'id="draft-version" type="hidden" name="draft_version" value="0"' in page
+    assert (directory / "input_manifest.json").read_bytes() == frozen
+
+
+def test_navigation_and_preparation_reject_stale_drafts_before_changing_history(
+    browser, workspace, prepared, frame_form
+):
+    before = json.loads((workspace / "project.json").read_text())
+    frames = sorted((workspace / "frames").iterdir())
+    for endpoint in ("/project/navigate", "/project/prepare"):
+        response = post(
+            browser,
+            endpoint,
+            {
+                **frame_form,
+                "draft_version": "0",
+                "framing": "FICTIONAL stale edit",
+                "target_exercise": "frame_challenge",
+            },
+        )
+        assert response.status_code == 409
+        assert b"FICTIONAL stale edit" in response.data
+    assert json.loads((workspace / "project.json").read_text()) == before
+    assert sorted((workspace / "frames").iterdir()) == frames

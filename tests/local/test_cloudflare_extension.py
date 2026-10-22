@@ -79,6 +79,8 @@ def test_run_merge_preserves_drafts_ledger_and_frozen_artifacts(tmp_path):
     (directory / "input_manifest.json").write_text("frozen")
     (directory / "run_events.jsonl").write_text("first\n")
     (root / "web.sqlite3").write_text("new independent draft metadata")
+    index = root / "projects/project/project.json"
+    index.write_text('{"current_exercise": "interviews", "exercise_progress": {}}')
     archive = io.BytesIO()
     with ZipFile(archive, "w") as bundle:
         bundle.writestr(prefix + "input_manifest.json", "frozen")
@@ -88,6 +90,7 @@ def test_run_merge_preserves_drafts_ledger_and_frozen_artifacts(tmp_path):
     snapshots.merge_run(archive.getvalue(), root, job)
     assert (directory / "run_events.jsonl").read_text() == "first\nsecond\n"
     assert (root / "web.sqlite3").read_text() == "new independent draft metadata"
+    assert json.loads(index.read_text())["current_exercise"] == "interviews"
     for filename, content in (
         ("input_manifest.json", "changed"),
         ("run_events.jsonl", "replaced"),
