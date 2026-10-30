@@ -1,6 +1,11 @@
+# Portable defaults for local/generated data.
+# Reviewed project exceptions below take precedence.
+*.csv
+*.parquet
+*.arrow
+*.jsonl
+
 # macOS
-.DS_Store
-.AppleDouble
 .LSOverride
 Icon?
 ._*
@@ -28,14 +33,7 @@ dist/
 htmlcov/
 
 # Secrets, credentials and env files
-.env
-.env.*
-*.env
-*.pem
-*.key
 *.crt
-*.p12
-*.pfx
 *.asc
 *.gpg
 id_rsa*
@@ -91,3 +89,24 @@ exercises/*.pdf
 /agents/agent_yaml_template.txt
 /agents/sentinel.md.rtf
 /references
+
+# Shared credential and OS safety baseline; keep independent of global Git config.
+# Existing reviewed template exceptions follow this block.
+.env
+.env.*
+*.env
+.dev.vars
+.dev.vars.*
+*.pem
+*.key
+*.p12
+*.pfx
+*service-account*.json
+id_rsa
+id_dsa
+id_ecdsa
+id_ed25519
+
+# macOS metadata
+.DS_Store
+.AppleDouble
