@@ -1,0 +1,4 @@
+# Reviewed historical false positive: Cloudflare Access application audience ID,
+# not an access token or credential. Exact finding only; no file/rule-wide bypass.
+# https://developers.cloudflare.com/cloudflare-one/access-controls/applications/http-apps/authorization-cookie/validating-json/
+5a29f911bb014f735f33e6f8ce8279120d556b71:extensions/cloudflare/wrangler.toml:generic-api-key:38
